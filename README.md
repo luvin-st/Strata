@@ -18,5 +18,6 @@ The goal is to make productivity feel sustainable and easy to maintain.
 - Backend: TBD
 - Database: TBD
 
-## Installation
+## Team Members
+- Shaden AlGhamdi
 

@@ -15,11 +15,11 @@ The goal is to make productivity feel sustainable and easy to maintain.
 
 ## Tech Stack
 - Frontend: TBD (Bukunmi) 
-- Backend: TBD
+- Backend: TBD (Denilson)
 - Database: TBD
 
 ## Team Members
 - Shaden AlGhamdi
 - Omar Bharwani
 - Bukunmi Odejayi
-
+- Denilson Montalvo

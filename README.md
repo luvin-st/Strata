@@ -14,11 +14,12 @@ The goal is to make productivity feel sustainable and easy to maintain.
 - Intuitive user experience
 
 ## Tech Stack
-- Frontend: TBD
+- Frontend: TBD (Bukunmi) 
 - Backend: TBD
 - Database: TBD
 
 ## Team Members
 - Shaden AlGhamdi
 - Omar Bharwani
+- Bukunmi Odejayi
 

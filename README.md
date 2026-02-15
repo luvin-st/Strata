@@ -20,4 +20,5 @@ The goal is to make productivity feel sustainable and easy to maintain.
 
 ## Team Members
 - Shaden AlGhamdi
+- Omar Bharwani
 

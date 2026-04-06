@@ -5,10 +5,17 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 exports.createTask = async (req, res) => {
-  const { title, description, priority, dueDate } = req.body;
+  const { title, description, priority, dueDate, category } = req.body;
   try {
     const task = await prisma.task.create({
-      data: { title, description, priority, dueDate: dueDate ? new Date(dueDate) : null, userId: req.user.userId }
+      data: {
+        title,
+        description,
+        priority,
+        dueDate: dueDate ? new Date(dueDate) : null,
+        category: category || 'Work',
+        userId: req.user.userId
+      }
     });
     res.status(201).json(task);
   } catch (err) {

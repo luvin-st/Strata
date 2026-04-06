@@ -9,4 +9,10 @@ router.post('/', auth, habitController.createHabit);
 // Mark habit as complete
 router.patch('/:id/complete', auth, habitController.markHabitComplete);
 
+// Delete a habit
+router.delete('/:id', auth, habitController.deleteHabit);
+
+router.get('/', auth, habitController.getHabits);
+
+
 module.exports = router;

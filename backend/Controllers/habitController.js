@@ -1,6 +1,8 @@
 // Name: Ana Rosales
 // Habit Controller - Handles habit creation and habit completion with streak implementation
 
+require('dotenv').config();
+console.log('DATABASE_URL loaded:', !!process.env.DATABASE_URL);
 const { PrismaClient } = require('@prisma/client');
 const { PrismaPg } = require('@prisma/adapter-pg');
 
@@ -30,6 +32,18 @@ exports.createHabit = async (req, res) => {
     res.status(201).json(habit);
   } catch (err) {
     res.status(500).json({ message: 'Could not create habit' });
+  }
+};
+
+exports.getHabits = async (req, res) => {
+  try {
+    const habits = await prisma.habit.findMany({
+      where: { userId: req.user.userId }
+    });
+    res.json(habits);
+  } catch (err) {
+    console.error('getHabits error:', err);
+    res.status(500).json({ message: 'Could not fetch habits', error: err.message });
   }
 };
 
@@ -78,5 +92,14 @@ exports.markHabitComplete = async (req, res) => {
     res.json(updatedHabit);
   } catch (err) {
     res.status(500).json({ message: 'Could not update habit' });
+  }
+};
+
+exports.deleteHabit = async (req, res) => {
+  try {
+    await prisma.habit.delete({ where: { id: parseInt(req.params.id) } });
+    res.json({ message: 'Habit deleted' });
+  } catch (err) {
+    res.status(500).json({ message: 'Could not delete habit' });
   }
 };

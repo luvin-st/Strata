@@ -2,43 +2,108 @@ const BASE_URL = 'http://localhost:3000/api';
 let authToken = null;
 
 const api = {
-  async login(email, password) {
-    
-    return { token: 'mock-token' };
-  },
   async register(name, email, password) {
-    
-    return { userId: 1 };
+    const res = await fetch(`${BASE_URL}/users/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password }),
+    });
+    return res.json();
   },
+
+  async login(email, password) {
+    const res = await fetch(`${BASE_URL}/users/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (data.token) authToken = data.token;
+    return data;
+  },
+
   async getTasks() {
-    
-    return state.tasks;
+    const res = await fetch(`${BASE_URL}/tasks`, {
+      headers: { 'Authorization': `Bearer ${authToken}` },
+    });
+    return res.json();
   },
+
   async createTask(payload) {
-    
-    const task = { id: Date.now(), ...payload, completed: false };
-    state.tasks.unshift(task);
-    return task;
+    const res = await fetch(`${BASE_URL}/tasks`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    return res.json();
   },
+
   async updateTask(id, payload) {
-    
-    const t = state.tasks.find(t => t.id === id);
-    if (t) Object.assign(t, payload);
-    return t;
+    const res = await fetch(`${BASE_URL}/tasks/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    return res.json();
   },
+
   async deleteTask(id) {
-    
-    state.tasks = state.tasks.filter(t => t.id !== id);
-    return { message: 'Task deleted' };
+    const res = await fetch(`${BASE_URL}/tasks/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${authToken}` },
+    });
+    return res.json();
   },
+
   async markComplete(id) {
-    
-    const t = state.tasks.find(t => t.id === id);
-    if (t) t.completed = !t.completed;
-    return t;
+    const res = await fetch(`${BASE_URL}/tasks/${id}/complete`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${authToken}` },
+    });
+    return res.json();
+  },
+
+async getHabits() {
+    const res = await fetch(`${BASE_URL}/habits`, {
+      headers: { 'Authorization': `Bearer ${authToken}` },
+    });
+    return res.json();
+  },
+
+  async createHabit(payload) {
+    const res = await fetch(`${BASE_URL}/habits`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    return res.json();
+  },
+
+  async markHabitComplete(id) {
+    const res = await fetch(`${BASE_URL}/habits/${id}/complete`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${authToken}` },
+    });
+    return res.json();
+  },
+
+  async deleteHabit(id) {
+    const res = await fetch(`${BASE_URL}/habits/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${authToken}` },
+    });
+    return res.json();
   },
 };
-
 
 let state = {
   user: { name: 'Emily Johnson', email: 'emily@example.com' },
@@ -111,14 +176,37 @@ function toggleAuth() {
 async function handleLogin() {
   const email    = document.getElementById('input-email').value;
   const password = document.getElementById('input-password').value;
-  const name     = document.getElementById('input-name').value || 'Emily Johnson';
+  const name     = document.getElementById('input-name').value || 'User';
+
   if (isSignup) {
     await api.register(name, email, password);
+    await api.login(email, password);
     state.user.name = name;
   } else {
     const res = await api.login(email, password);
-    authToken = res.token;
+    if (!res.token) { showToast('Invalid email or password'); return; }
+    state.user.name = name || email.split('@')[0];
   }
+
+  // Load real tasks from database
+  const tasks = await api.getTasks();
+  state.tasks = tasks.map(t => ({
+    ...t,
+    dueDate: t.dueDate ? t.dueDate.split('T')[0] : '',
+    category: t.category || 'Work',
+  }));
+
+  // Load real habits from database
+  const habits = await api.getHabits();
+  state.habits = habits.map(h => ({
+    ...h,
+    freq: h.frequency || 'Daily',
+    todayDone: h.lastCompletedDate
+      ? new Date(h.lastCompletedDate).toDateString() === new Date().toDateString()
+      : false,
+    days: [false, false, false, false, false, false, false],
+  }));
+
   document.getElementById('user-name-display').textContent = state.user.name;
   document.getElementById('user-avatar').textContent       = state.user.name[0].toUpperCase();
   document.getElementById('greeting-text').textContent     = `Good morning, ${state.user.name.split(' ')[0]}`;
@@ -366,7 +454,12 @@ async function saveTask() {
     dueDate:     document.getElementById('new-task-dueDate').value || null,
     category:    document.getElementById('new-task-category').value,
   };
-  await api.createTask(payload);
+  const newTask = await api.createTask(payload);
+  state.tasks.unshift({
+    ...newTask,
+    dueDate: newTask.dueDate ? newTask.dueDate.split('T')[0] : '',
+    category: payload.category,
+  });
   showToast('Task created');
   showPage('dashboard', document.querySelector('.nav-item'));
   renderDashboard();
@@ -375,12 +468,19 @@ async function saveTask() {
 
 const dayLabels = ['M','T','W','T','F','S','S'];
 
-function toggleHabitToday(id) {
+async function toggleHabitToday(id) {
   const h = state.habits.find(h => h.id === id);
   if (!h) return;
-  h.todayDone = !h.todayDone;
-  h.days[6]   = h.todayDone;
-  h.streak    = h.todayDone ? h.streak + 1 : Math.max(0, h.streak - 1);
+  if (!h.todayDone) {
+    await api.markHabitComplete(id);
+    h.todayDone = true;
+    h.streak += 1;
+    h.days[6] = true;
+  } else {
+    h.todayDone = false;
+    h.streak = Math.max(0, h.streak - 1);
+    h.days[6] = false;
+  }
   renderDashboard();
   renderHabits();
   showToast(h.todayDone ? `${h.name} done` : 'Habit unmarked');
@@ -429,7 +529,8 @@ function renderHabits() {
     </div>`;
 }
 
-function deleteHabit(id) {
+async function deleteHabit(id) {
+  await api.deleteHabit(id);
   state.habits = state.habits.filter(h => h.id !== id);
   renderHabits();
   showToast('Habit deleted');

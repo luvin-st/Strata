@@ -10,6 +10,7 @@ app.use(express.json());
 
 app.use('/api/users', require('./Routes/users'));
 app.use('/api/tasks', require('./Routes/tasks'));
+app.use('/api/habits', require('./Routes/habit'));
 
 app.get('/', (req, res) => {
   res.json({ message: 'Strata API is running!' });

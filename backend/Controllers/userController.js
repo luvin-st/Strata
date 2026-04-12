@@ -8,12 +8,32 @@ const prisma = new PrismaClient({ adapter });
 
 exports.register = async (req, res) => {
   const { name, email, password } = req.body;
+
+  if (!name || !email || !password) {
+    return res.status(400).json({ message: 'All fields required' });
+  }
+
+  if (!email.includes('@')) {
+    return res.status(400).json({ message: 'Invalid email format' });
+  }
+
+  if (password.length < 6 || password.length > 12) {
+    return res.status(400).json({ message: 'Password must be 6-12 characters' });
+  }
+
+  if (!/\d/.test(password)) {
+    return res.status(400).json({ message: 'Password must contain a number' });
+  }
+
   try {
     const hashed = await bcrypt.hash(password, 10);
+
     const user = await prisma.user.create({
       data: { name, email, password: hashed }
     });
+
     res.status(201).json({ message: 'User created', userId: user.id });
+
   } catch (err) {
     res.status(400).json({ message: 'Email already in use' });
   }
@@ -70,4 +90,20 @@ exports.getUserTasks = async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: 'Could not fetch tasks' });
   }
+};
+
+exports.resetPassword = async (req, res) => {
+  console.log("RESET PASSWORD HIT");
+
+  const { email, newPassword, confirmPassword } = req.body;
+
+  if (!email || !newPassword || !confirmPassword) {
+    return res.status(400).json({ message: 'All fields required' });
+  }
+
+  if (newPassword !== confirmPassword) {
+    return res.status(400).json({ message: 'Passwords do not match' });
+  }
+
+  return res.json({ message: 'Password reset successful' });
 };

@@ -18,12 +18,22 @@ const api = {
       body: JSON.stringify({ email, password }),
     });
     const data = await res.json();
-    if (data.token) { authToken = data.token; sessionStorage.setItem('strata_token', authToken); }
+    if (data.token) {
+      authToken = data.token;
+      sessionStorage.setItem('strata_token', authToken);
+    }
     return data;
   },
 
   async getTasks() {
     const res = await fetch(`${BASE_URL}/tasks`, {
+      headers: { 'Authorization': `Bearer ${authToken}` },
+    });
+    return res.json();
+  },
+
+  async getTasksSorted() {
+    const res = await fetch(`${BASE_URL}/tasks/sorted`, {
       headers: { 'Authorization': `Bearer ${authToken}` },
     });
     return res.json();
@@ -69,7 +79,55 @@ const api = {
     return res.json();
   },
 
-async getHabits() {
+  async unmarkComplete(id) {
+    const res = await fetch(`${BASE_URL}/tasks/${id}/uncomplete`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${authToken}` },
+    });
+    return res.json();
+  },
+
+  // ✅ granular updates
+
+  async setCategory(id, category) {
+    const res = await fetch(`${BASE_URL}/tasks/${id}/category`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ category }),
+    });
+    return res.json();
+  },
+
+  async setDueDate(id, dueDate) {
+    const res = await fetch(`${BASE_URL}/tasks/${id}/due`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ dueDate }),
+    });
+    return res.json();
+  },
+
+  async setPriority(id, priority) {
+    const res = await fetch(`${BASE_URL}/tasks/${id}/priority`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ priority }),
+    });
+    return res.json();
+  },
+
+  // habits
+
+  async getHabits() {
     const res = await fetch(`${BASE_URL}/habits`, {
       headers: { 'Authorization': `Bearer ${authToken}` },
     });

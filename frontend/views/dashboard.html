@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Strata</title>
+        <title>Strata - Dashboard</title>
         <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="../styles/stylesheet.css">
         <script src="../scripts/script.js"></script>
@@ -73,161 +73,70 @@
                 <div class="page-body">
 
                     <div id="page-dashboard" class="page-section" style="display:block;">
-                        <div class="greeting">
-                            <h2 id="greeting-text">Good morning, Emily</h2>
-                            <p id="greeting-sub">Sunday, April 5 · 4 tasks today</p>
-                        </div>
-                        <div class="stats-row">
-                            <div class="stat-card">
-                                <div class="stat-card-top"><div class="stat-card-icon"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="14" height="14" rx="2.5"/><path d="M5 9l3 3 5-5"/></svg></div></div>
-                                <div class="stat-card-num" id="stat-total">6</div>
-                                <div class="stat-card-label">Total tasks</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-card-top"><div class="stat-card-icon"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="9" r="7"/><path d="M5.5 9l2.5 2.5 4.5-4.5"/></svg></div></div>
-                                <div class="stat-card-num" id="stat-done">2</div>
-                                <div class="stat-card-label">Completed</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-card-top"><div class="stat-card-icon"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="9" r="7"/><path d="M9 5v4l2.5 2.5"/></svg></div></div>
-                                <div class="stat-card-num" id="stat-habits">3</div>
-                                <div class="stat-card-label">Habits active</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-card-top"><div class="stat-card-icon"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 14l4-4 3 3 5-6"/></svg></div></div>
-                                <div class="stat-card-num" id="stat-rate">67%</div>
-                                <div class="stat-card-label">Completion rate</div>
-                            </div>
-                        </div>
-                        <div class="dashboard-grid">
-                            <div class="panel">
-                                <div class="panel-header">
-                                    <span class="panel-title">Tasks</span>
-                                    <div class="panel-tabs">
-                                        <div class="ptab active" onclick="switchTab(this,'today')">Today</div>
-                                        <div class="ptab" onclick="switchTab(this,'upcoming')">Upcoming</div>
-                                    </div>
-                                </div>
-                                <div class="task-list" id="dashboard-task-list"></div>
-                            </div>
-                            
-                            <div style="display:flex;flex-direction:column;gap:20px;">
-                                <div class="panel">
-                                    <div class="upcoming-header">
-                                        <span class="panel-title">Upcoming</span>
-                                        <span class="date-chip">
-                                        <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="2" width="10" height="9" rx="1.5"/><path d="M4 1v2M8 1v2M1 5h10"/></svg>
-                                        This week
-                                        </span>
-                                    </div>
-                                    <div id="upcoming-mini-list"></div>
-                                    </div>
-                                    <div class="panel">
-                                        <div class="panel-header">
-                                            <span class="panel-title">Habits today</span>
-                                            <span class="panel-link" onclick="showPage('habits',document.querySelectorAll('.nav-item')[2])">View all</span>
+                                            <div class="greeting">
+                                                <h2 id="greeting-text">Good morning, Emily</h2>
+                                                <p id="greeting-sub">Sunday, April 5 · 4 tasks today</p>
+                                            </div>
+                                            <div class="stats-row">
+                                                <div class="stat-card">
+                                                    <div class="stat-card-top"><div class="stat-card-icon"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="14" height="14" rx="2.5"/><path d="M5 9l3 3 5-5"/></svg></div></div>
+                                                    <div class="stat-card-num" id="stat-total">6</div>
+                                                    <div class="stat-card-label">Total tasks</div>
+                                                </div>
+                                                <div class="stat-card">
+                                                    <div class="stat-card-top"><div class="stat-card-icon"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="9" r="7"/><path d="M5.5 9l2.5 2.5 4.5-4.5"/></svg></div></div>
+                                                    <div class="stat-card-num" id="stat-done">2</div>
+                                                    <div class="stat-card-label">Completed</div>
+                                                </div>
+                                                <div class="stat-card">
+                                                    <div class="stat-card-top"><div class="stat-card-icon"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="9" r="7"/><path d="M9 5v4l2.5 2.5"/></svg></div></div>
+                                                    <div class="stat-card-num" id="stat-habits">3</div>
+                                                    <div class="stat-card-label">Habits active</div>
+                                                </div>
+                                                <div class="stat-card">
+                                                    <div class="stat-card-top"><div class="stat-card-icon"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 14l4-4 3 3 5-6"/></svg></div></div>
+                                                    <div class="stat-card-num" id="stat-rate">67%</div>
+                                                    <div class="stat-card-label">Completion rate</div>
+                                                </div>
+                                            </div>
+                                            <div class="dashboard-grid">
+                                                <div class="panel">
+                                                    <div class="panel-header">
+                                                        <span class="panel-title">Tasks</span>
+                                                        <div class="panel-tabs">
+                                                            <div class="ptab active" onclick="switchTab(this,'today')">Today</div>
+                                                            <div class="ptab" onclick="switchTab(this,'upcoming')">Upcoming</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="task-list" id="dashboard-task-list"></div>
+                                                </div>
+                                                
+                                                <div style="display:flex;flex-direction:column;gap:20px;">
+                                                    <div class="panel">
+                                                        <div class="upcoming-header">
+                                                            <span class="panel-title">Upcoming</span>
+                                                            <span class="date-chip">
+                                                            <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="2" width="10" height="9" rx="1.5"/><path d="M4 1v2M8 1v2M1 5h10"/></svg>
+                                                            This week
+                                                            </span>
+                                                        </div>
+                                                        <div id="upcoming-mini-list"></div>
+                                                        </div>
+                                                        <div class="panel">
+                                                            <div class="panel-header">
+                                                                <span class="panel-title">Habits today</span>
+                                                                <span class="panel-link" onclick="showPage('habits',document.querySelectorAll('.nav-item')[2])">View all</span>
+                                                            </div>
+                                                        <div id="dash-habits-list"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                    <div id="dash-habits-list"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
-                    <div id="page-tasks" class="page-section">
-                        <div class="tasks-header" id="task-filters">
-                            <div class="ptab active" onclick="filterTasks('all',this)">All</div>
-                            <div class="ptab" onclick="filterTasks('todo',this)">To do</div>
-                            <div class="ptab" onclick="filterTasks('done',this)">Done</div>
-                            <div class="ptab" onclick="filterTasks('Work',this)">Work</div>
-                            <div class="ptab" onclick="filterTasks('Personal',this)">Personal</div>
-                            <div class="ptab" onclick="filterTasks('Home',this)">Home</div>
-                        </div>
-                        <div class="panel"><div class="task-list" id="all-task-list"></div></div>
-                    </div>
-
-                    <div id="page-create" class="page-section">
-                        <div class="create-layout">
-                            <div class="create-form-card">
-                                <h3 id="create-form-title">New Task</h3>
-                                <div class="field-group">
-                                    <label class="field-label">Title</label>
-                                    <input class="field-input" type="text" id="new-task-title" placeholder="What needs to be done?" oninput="updatePreview()">
-                                </div>
-                                <div class="field-group">
-                                    <label class="field-label">Description</label>
-                                    <textarea class="field-textarea" id="new-task-description" placeholder="Add notes or details..." oninput="updatePreview()"></textarea>
-                                </div>
-                                <div class="field-row">
-                                    <div class="field-group" style="margin-bottom:0">
-                                        <label class="field-label">Category</label>
-                                        <select class="field-select" id="new-task-category" onchange="updatePreview()">
-                                        <option>Work</option><option>Personal</option><option>Home</option><option>Health</option>
-                                        </select>
-                                    </div>
-                                    <div class="field-group" style="margin-bottom:0">
-                                        <label class="field-label">Due Date</label>
-                                        <input class="field-input" type="date" id="new-task-dueDate">
-                                    </div>
-                                </div>
-                                <div class="field-group" style="margin-top:20px;">
-                                    <label class="field-label">Priority</label>
-                                    <div class="priority-row">
-                                        <button class="prio-btn low sel"    onclick="selectPriority(this,'low')">Low</button>
-                                        <button class="prio-btn medium"     onclick="selectPriority(this,'medium')">Medium</button>
-                                        <button class="prio-btn high"       onclick="selectPriority(this,'high')">High</button>
-                                    </div>
-                                </div>
-                                <div class="create-actions">
-                                    <button class="btn-outline" onclick="showPage('dashboard',document.querySelector('.nav-item'))">Cancel</button>
-                                    <button class="btn-save" id="save-task-btn" onclick="saveTask()">Save Task</button>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="preview-card">
-                                    <div class="preview-label">Preview</div>
-                                    <div class="preview-title" id="prev-title" style="color:var(--text-3);font-style:italic;">Task title...</div>
-                                    <div class="preview-meta" id="prev-meta">
-                                        <span class="preview-chip">Work</span>
-                                        <span class="preview-chip">Low priority</span>
-                                    </div>
-                                    <div class="preview-desc" id="prev-desc" style="font-style:italic;color:var(--text-3);">No description yet</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="page-habits" class="page-section">
-                        <div class="habits-grid" id="habits-grid"></div>
-                    </div>
-
-                    <div id="page-settings" class="page-section">
-                        <div class="settings-layout">
-                            <div class="settings-nav">
-                                <div class="settings-nav-item active" onclick="switchSettingsTab(this,'profile')">
-                                    <span class="settings-nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg></span>
-                                    Profile
-                                </div>
-                                <div class="settings-nav-item" onclick="switchSettingsTab(this,'preferences')">
-                                    <span class="settings-nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M4 8h8M6 12h4"/></svg></span>
-                                    Preferences
-                                </div>
-                                <div class="settings-nav-item" onclick="switchSettingsTab(this,'notifications')">
-                                    <span class="settings-nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1a5 5 0 00-5 5v3l-1.5 1.5v.5h13v-.5L13 9V6a5 5 0 00-5-5z"/><path d="M6.5 13.5a1.5 1.5 0 003 0"/></svg></span>
-                                    Notifications
-                                </div>
-                                <div class="settings-nav-item" onclick="switchSettingsTab(this,'account')">
-                                    <span class="settings-nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5 7V5a3 3 0 016 0v2"/></svg></span>
-                                    Account
-                                </div>
-                            </div>
-                            <div class="settings-panel" id="settings-content"></div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
 
-            FOCUS VIEW
         <div id="view-focus" class="view">
             <button class="focus-exit" onclick="exitFocus()">Exit Focus</button>
             <div class="focus-wrap">
@@ -261,6 +170,7 @@
             </div>
         </div>
 
+
         <div class="modal-overlay" id="delete-modal">
             <div class="modal-box">
                 <div class="modal-title">Delete task?</div>
@@ -271,9 +181,7 @@
                 </div>
             </div>
         </div>
-
         <div class="toast" id="toast"></div>
 
-        
     </body>
 </html>

@@ -3,15 +3,14 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Strata - Habits</title>
+        <title>Strata - Focus Mode</title>
         <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="../styles/stylesheet.css">
         <script src="../scripts/script.js"></script>
     </head>
     <body>
 
-        <div id="view-app" class="view active">
-
+        <div id="view-app" class="view" style="display:none;">
             <aside class="sidebar">
                 <div class="sidebar-logo">
                     <div class="s-logo-icon">
@@ -30,11 +29,11 @@
                         My Tasks
                         <span class="nav-badge" id="task-badge">4</span>
                     </div>
-                    <div class="nav-item active" onclick="showPage('habits',this)">
+                    <div class="nav-item" onclick="showPage('habits',this)">
                         <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg></span>
                         Habits
                     </div>
-                    <div class="nav-item" onclick="showPage('focus',this)">
+                    <div class="nav-item active" onclick="showPage('focus',this)">
                         <span class="nav-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><path d="M6 6l4 2-4 2V6z" fill="currentColor" stroke="none"/></svg></span>
                         Focus Mode
                     </div>
@@ -52,10 +51,9 @@
                     </div>
                 </div>
             </aside>
-
             <div class="main-content">
                 <div class="topbar">
-                    <div class="topbar-title" id="topbar-title">Habits</div>
+                    <div class="topbar-title" id="topbar-title">Focus Mode</div>
                     <div class="topbar-actions">
                         <div class="icon-btn" title="Search">
                             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6.5" cy="6.5" r="4"/><path d="M11 11l3 3"/></svg>
@@ -69,18 +67,11 @@
                         </button>
                     </div>
                 </div>
-
-                <div class="page-body">
-
-                    <div id="page-habits" class="page-section" style="display:block;">
-                        <div class="habits-grid" id="habits-grid"></div>
-                    </div>
-
-                </div>
+                <div class="page-body"></div>
             </div>
         </div>
 
-        <div id="view-focus" class="view">
+        <div id="view-focus" class="view active">
             <button class="focus-exit" onclick="exitFocus()">Exit Focus</button>
             <div class="focus-wrap">
                 <div class="focus-session-label">Pomodoro Session</div>

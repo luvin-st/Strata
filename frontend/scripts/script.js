@@ -18,7 +18,7 @@ const api = {
       body: JSON.stringify({ email, password }),
     });
     const data = await res.json();
-    if (data.token) authToken = data.token;
+    if (data.token) { authToken = data.token; sessionStorage.setItem('strata_token', authToken); }
     return data;
   },
 
@@ -134,7 +134,32 @@ let state = {
 };
 
 const today = new Date().toISOString().split('T')[0];
-state.tasks.forEach((t, i) => { if (i < 4) t.dueDate = today; });
+
+// Restore persisted session data (set after login, shared across pages)
+(function restoreSession() {
+  try {
+    const savedToken = sessionStorage.getItem('strata_token');
+    if (savedToken) authToken = savedToken;
+
+    const savedUser = sessionStorage.getItem('strata_user');
+    if (savedUser) state.user = JSON.parse(savedUser);
+
+    const savedTasks = sessionStorage.getItem('strata_tasks');
+    if (savedTasks) state.tasks = JSON.parse(savedTasks);
+
+    const savedHabits = sessionStorage.getItem('strata_habits');
+    if (savedHabits) state.habits = JSON.parse(savedHabits);
+  } catch(e) { /* ignore parse errors */ }
+})();
+
+// Persist state changes back to sessionStorage so they survive page navigation
+function persistState() {
+  try {
+    sessionStorage.setItem('strata_tasks',  JSON.stringify(state.tasks));
+    sessionStorage.setItem('strata_habits', JSON.stringify(state.habits));
+    sessionStorage.setItem('strata_user',   JSON.stringify(state.user));
+  } catch(e) {}
+}
 
 
 function initDarkMode() {
@@ -207,22 +232,48 @@ async function handleLogin() {
     days: [false, false, false, false, false, false, false],
   }));
 
-  document.getElementById('user-name-display').textContent = state.user.name;
-  document.getElementById('user-avatar').textContent       = state.user.name[0].toUpperCase();
-  document.getElementById('greeting-text').textContent     = `Good morning, ${state.user.name.split(' ')[0]}`;
-  showView('app');
-  renderAll();
+  // Store user info for other pages to pick up
+  sessionStorage.setItem('strata_user', JSON.stringify(state.user));
+  sessionStorage.setItem('strata_tasks', JSON.stringify(state.tasks));
+  sessionStorage.setItem('strata_habits', JSON.stringify(state.habits));
+
+  // Redirect to dashboard after login
+  window.location.href = 'dashboard.html';
 }
 
-function handleLogout() { showView('login'); }
+function handleLogout() { window.location.href = 'login.html'; }
 
 
 function showView(v) {
   document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
-  document.getElementById('view-' + v).classList.add('active');
+  const el = document.getElementById('view-' + v);
+  if (el) el.classList.add('active');
+}
+
+// Page-to-file mapping for multi-page navigation
+const PAGE_FILES = {
+  dashboard: 'dashboard.html',
+  tasks:     'tasks.html',
+  habits:    'habits.html',
+  focus:     'focus.html',
+  settings:  'settings.html',
+  create:    'tasks.html?create=1',
+};
+
+function navigateTo(page) {
+  const file = PAGE_FILES[page];
+  if (file) window.location.href = file;
 }
 
 function showPage(page, navEl) {
+  // If this page's section doesn't exist in the current document, navigate to it
+  const target = document.getElementById('page-' + page);
+  if (!target) {
+    navigateTo(page);
+    return;
+  }
+
+  // Otherwise handle in-page switching (for pages with multiple sections)
   ['dashboard','tasks','create','habits','focus','settings'].forEach(p => {
     const el = document.getElementById('page-' + p);
     if (el) el.style.display = 'none';
@@ -230,14 +281,12 @@ function showPage(page, navEl) {
   if (page === 'focus') { showView('focus'); renderFocusTasks(); return; }
   showView('app');
   const titles = { dashboard:'Dashboard', tasks:'My Tasks', create:'New Task', habits:'Habits', settings:'Settings' };
-  document.getElementById('topbar-title').textContent = titles[page] || page;
-  const target = document.getElementById('page-' + page);
-  if (target) {
-    target.style.display = 'block';
-    target.classList.remove('fade-in');
-    void target.offsetWidth;
-    target.classList.add('fade-in');
-  }
+  const titleEl = document.getElementById('topbar-title');
+  if (titleEl) titleEl.textContent = titles[page] || page;
+  target.style.display = 'block';
+  target.classList.remove('fade-in');
+  void target.offsetWidth;
+  target.classList.add('fade-in');
   if (navEl) {
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     navEl.classList.add('active');
@@ -249,10 +298,30 @@ function showPage(page, navEl) {
   if (page === 'create')    initCreateForm();
 }
 
+// Auto-init: call the right render function based on which page we're on
+function initCurrentPage() {
+  if (document.getElementById('page-dashboard')) { renderDashboard(); }
+  if (document.getElementById('page-tasks'))     {
+    // Check if arriving via ?create=1
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('create') === '1') {
+      document.getElementById('page-tasks').style.display = 'none';
+      const createEl = document.getElementById('page-create');
+      if (createEl) { createEl.style.display = 'block'; initCreateForm(); }
+    } else {
+      renderAllTasks();
+    }
+  }
+  if (document.getElementById('page-habits'))   { renderHabits(); }
+  if (document.getElementById('page-settings')) { renderSettings('profile'); }
+  if (document.getElementById('view-focus'))     { renderFocusTasks(); }
+}
+
 
 function renderAll() { renderDashboard(); }
 
 function renderDashboard() {
+  if (!document.getElementById('page-dashboard')) return;
   const todayTasks = state.tasks.filter(t => t.dueDate === today);
   const doneTasks  = state.tasks.filter(t => t.completed);
   const rate = state.tasks.length ? Math.round((doneTasks.length / state.tasks.length) * 100) : 0;
@@ -335,13 +404,16 @@ function switchTab(el, tab) {
 
 async function toggleTask(id) {
   await api.markComplete(id);
+  const t = state.tasks.find(t => t.id === id);
+  if (t) t.completed = !t.completed;
+  persistState();
   renderDashboard();
   renderAllTasks();
-  const t = state.tasks.find(t => t.id === id);
-  showToast(t.completed ? 'Task completed' : 'Task reopened');
+  showToast(t && t.completed ? 'Task completed' : 'Task reopened');
 }
 
 function renderAllTasks() {
+  if (!document.getElementById('all-task-list')) return;
   let list = [...state.tasks];
   if      (state.currentFilter === 'todo') list = list.filter(t => !t.completed);
   else if (state.currentFilter === 'done') list = list.filter(t => t.completed);
@@ -390,6 +462,9 @@ async function updateTask(id) {
     priority:    state.priority,
   };
   await api.updateTask(id, payload);
+  const idx = state.tasks.findIndex(t => t.id === id);
+  if (idx !== -1) state.tasks[idx] = { ...state.tasks[idx], ...payload };
+  persistState();
   showToast('Task updated');
   state.editingTaskId = null;
   showPage('tasks', document.querySelectorAll('.nav-item')[1]);
@@ -401,6 +476,8 @@ function closeModal()    { document.getElementById('delete-modal').classList.rem
 
 async function confirmDelete() {
   await api.deleteTask(state.deleteTarget);
+  state.tasks = state.tasks.filter(t => t.id !== state.deleteTarget);
+  persistState();
   closeModal();
   renderDashboard();
   renderAllTasks();
@@ -460,9 +537,9 @@ async function saveTask() {
     dueDate: newTask.dueDate ? newTask.dueDate.split('T')[0] : '',
     category: payload.category,
   });
+  persistState();
   showToast('Task created');
   showPage('dashboard', document.querySelector('.nav-item'));
-  renderDashboard();
 }
 
 
@@ -481,6 +558,7 @@ async function toggleHabitToday(id) {
     h.streak = Math.max(0, h.streak - 1);
     h.days[6] = false;
   }
+  persistState();
   renderDashboard();
   renderHabits();
   showToast(h.todayDone ? `${h.name} done` : 'Habit unmarked');
@@ -491,10 +569,12 @@ function toggleHabitDay(id, dayIdx) {
   if (!h) return;
   h.days[dayIdx] = !h.days[dayIdx];
   h.streak = h.days.filter(Boolean).length;
+  persistState();
   renderHabits();
 }
 
 function renderHabits() {
+  if (!document.getElementById('habits-grid')) return;
   const habitIcon = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="8"/><path d="M10 6v4l2.5 2.5"/></svg>`;
   const checkIcon = `<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2"><path d="M1.5 5l2.5 2.5 4.5-4.5"/></svg>`;
   const flameIcon = `<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 1c0 3-3 4-3 6.5C3 9.4 4.3 11 6 11s3-1.6 3-3.5C9 5 6 4 6 1z"/></svg>`;
@@ -532,12 +612,14 @@ function renderHabits() {
 async function deleteHabit(id) {
   await api.deleteHabit(id);
   state.habits = state.habits.filter(h => h.id !== id);
+  persistState();
   renderHabits();
   showToast('Habit deleted');
 }
 
 
 function renderFocusTasks() {
+  if (!document.getElementById('focus-task-list')) return;
   const activeTasks = state.tasks.filter(t => !t.completed).slice(0, 4);
   document.getElementById('focus-task-list').innerHTML = activeTasks.map(t => `
     <div class="focus-pick-item ${t.title === state.focusTask ? 'active' : ''}"
@@ -676,6 +758,7 @@ function settingsHTML(tab) {
 }
 
 function renderSettings(tab) {
+  if (!document.getElementById('settings-content')) return;
   document.getElementById('settings-content').innerHTML = settingsHTML(tab);
   if (document.getElementById('settings-avatar'))
     document.getElementById('settings-avatar').textContent = state.user.name[0];
@@ -699,3 +782,4 @@ function showToast(msg) {
 
 updateFocusClock();
 initDarkMode();
+initCurrentPage();

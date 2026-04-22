@@ -116,9 +116,9 @@ let state = {
     { id:6, title:'Install new shelves',          description:'',                                 priority:'low',    dueDate:'', completed:false, category:'Home'     },
   ],
   habits: [
-    { id:101, name:'Morning run',     freq:'Daily', streak:12, days:[true,true,true,true,true,true,false],  todayDone:false },
-    { id:102, name:'Read 20 pages',   freq:'Daily', streak:5,  days:[true,false,true,true,true,true,false], todayDone:false },
-    { id:103, name:'Drink 8 glasses', freq:'Daily', streak:3,  days:[false,true,true,true,true,false,false],todayDone:false },
+    { id:101, name:'Morning run',     frequency:'daily',    customDays:[], category:'Fitness',  desc:'',                  completions:[], createdAt:'' },
+    { id:102, name:'Read 20 pages',   frequency:'daily',    customDays:[], category:'Learning', desc:'',                  completions:[], createdAt:'' },
+    { id:103, name:'Drink 8 glasses', frequency:'weekdays', customDays:[], category:'Health',   desc:'Stay hydrated',     completions:[], createdAt:'' },
   ],
   priority: 'low',
   editingTaskId: null,
@@ -145,11 +145,24 @@ const today = new Date().toISOString().split('T')[0];
     if (savedUser) state.user = JSON.parse(savedUser);
 
     const savedTasks = sessionStorage.getItem('strata_tasks');
-    if (savedTasks) state.tasks = JSON.parse(savedTasks);
+    if (savedTasks) {
+      state.tasks = JSON.parse(savedTasks);
+    } else {
+      // Seed demo tasks with today's date on first load
+      state.tasks.forEach((t, i) => { if (i < 4) t.dueDate = today; });
+    }
 
     const savedHabits = sessionStorage.getItem('strata_habits');
     if (savedHabits) state.habits = JSON.parse(savedHabits);
   } catch(e) { /* ignore parse errors */ }
+
+  // Safely update user info elements present on any page
+  const nameEl   = document.getElementById('user-name-display');
+  const avatarEl = document.getElementById('user-avatar');
+  const greetEl  = document.getElementById('greeting-text');
+  if (nameEl)   nameEl.textContent   = state.user.name;
+  if (avatarEl) avatarEl.textContent = state.user.name[0].toUpperCase();
+  if (greetEl)  greetEl.textContent  = `Good morning, ${state.user.name.split(' ')[0]}`;
 })();
 
 // Persist state changes back to sessionStorage so they survive page navigation
@@ -224,12 +237,14 @@ async function handleLogin() {
   // Load real habits from database
   const habits = await api.getHabits();
   state.habits = habits.map(h => ({
-    ...h,
-    freq: h.frequency || 'Daily',
-    todayDone: h.lastCompletedDate
-      ? new Date(h.lastCompletedDate).toDateString() === new Date().toDateString()
-      : false,
-    days: [false, false, false, false, false, false, false],
+    id:          h.id,
+    name:        h.name,
+    desc:        h.description || '',
+    frequency:   h.frequency || 'daily',
+    customDays:  h.customDays || [],
+    category:    h.category   || 'Health',
+    completions: h.completions || [],
+    createdAt:   h.createdAt  || '',
   }));
 
   // Store user info for other pages to pick up
@@ -347,21 +362,30 @@ function renderDashboard() {
   document.getElementById('upcoming-mini-list').innerHTML =
     upcoming.length ? upcoming.map(t => taskRowHTML(t, true)).join('') : emptyState('All clear');
 
-  document.getElementById('dash-habits-list').innerHTML = state.habits.map(h => `
+  const _todayStr = new Date().toDateString();
+  document.getElementById('dash-habits-list').innerHTML = state.habits.map(h => {
+    const todayDone = (h.completions || []).includes(_todayStr);
+    const streak    = habitCalcStreak(h);
+    const last7     = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - i);
+      last7.push((h.completions || []).includes(d.toDateString()));
+    }
+    return `
     <div class="habit-mini-row">
-      <div class="h-check ${h.todayDone ? 'done' : ''}" onclick="toggleHabitToday(${h.id})">
-        ${h.todayDone
+      <div class="h-check ${todayDone ? 'done' : ''}" onclick="toggleHabitToday(${h.id})">
+        ${todayDone
           ? '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 7l3 3 6-6"/></svg>'
           : '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3v8M3 7h8"/></svg>'}
       </div>
       <div class="habit-mini-info">
         <div class="habit-mini-name">${h.name}</div>
-        <div class="habit-mini-streak">${h.streak} day streak</div>
+        <div class="habit-mini-streak">${streak} day streak</div>
       </div>
-      <div class="habit-week">${h.days.map((d, i) =>
+      <div class="habit-week">${last7.map((d, i) =>
         `<div class="hw-dot ${d ? 'done' : ''} ${i === 6 ? 'today' : ''}"></div>`).join('')}</div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 function emptyState(msg) {
@@ -543,79 +567,276 @@ async function saveTask() {
 }
 
 
-const dayLabels = ['M','T','W','T','F','S','S'];
+// ── Habit helpers ────────────────────────────────────────────────────────────
+const habitIcon = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="8"/><path d="M10 6v4l2.5 2.5"/></svg>`;
+const habitCheckIcon = `<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2"><path d="M1.5 5l2.5 2.5 4.5-4.5"/></svg>`;
+const habitFlameIcon = `<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 1c0 3-3 4-3 6.5C3 9.4 4.3 11 6 11s3-1.6 3-3.5C9 5 6 4 6 1z"/></svg>`;
 
+function habitFreqLabel(freq, customDays) {
+  if (freq === 'daily')    return 'Daily';
+  if (freq === 'weekdays') return 'Weekdays';
+  if (freq === 'custom')   return (customDays || []).join(', ') || 'Custom';
+  return freq;
+}
+
+function habitIsScheduledDay(h, date) {
+  const dayName  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][date.getDay()];
+  const weekdays = ['Mon','Tue','Wed','Thu','Fri'];
+  if (h.frequency === 'daily')    return true;
+  if (h.frequency === 'weekdays') return weekdays.includes(dayName);
+  if (h.frequency === 'custom')   return (h.customDays || []).includes(dayName);
+  return true;
+}
+
+function habitCalcStreak(h) {
+  const comps = (h.completions || []).slice().sort();
+  if (!comps.length) return 0;
+  let streak = 0;
+  let cursor = new Date(); cursor.setHours(0,0,0,0);
+  for (let i = comps.length - 1; i >= 0; i--) {
+    const d = new Date(comps[i]); d.setHours(0,0,0,0);
+    const diff = (cursor - d) / 86400000;
+    if (diff <= 1) { streak++; cursor = d; } else break;
+  }
+  return streak;
+}
+
+// ── Render habits page ───────────────────────────────────────────────────────
+function renderHabits() {
+  if (!document.getElementById('habits-grid')) return;
+  const grid  = document.getElementById('habits-grid');
+  const empty = document.getElementById('habits-empty');
+  grid.innerHTML = '';
+
+  if (!state.habits.length) {
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  const now = new Date(); now.setHours(0,0,0,0);
+  const todayStr = now.toDateString();
+
+  state.habits.forEach(h => {
+    const streak          = habitCalcStreak(h);
+    const todayDone       = (h.completions || []).includes(todayStr);
+    const todayScheduled  = habitIsScheduledDay(h, now);
+
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now); d.setDate(d.getDate() - i);
+      days.push({
+        label:     ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()],
+        dateStr:   d.toDateString(),
+        done:      (h.completions || []).includes(d.toDateString()),
+        isToday:   i === 0,
+        scheduled: habitIsScheduledDay(h, d),
+      });
+    }
+
+    const card = document.createElement('div');
+    card.className = 'habit-card';
+    card.innerHTML = `
+      <div class="habit-card-top">
+        <div class="habit-card-icon">${habitIcon}</div>
+        <div style="display:flex;gap:4px;">
+          <span class="habit-card-menu" title="Edit" onclick="openEditHabit(${h.id})" style="color:var(--text-3)">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 2l3 3-6 6H3v-3L9 2z"/></svg>
+          </span>
+          <span class="habit-card-menu" title="Delete" onclick="openDeleteHabit(${h.id})">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3.5h10M5.5 3.5V2.5h3v1M4 3.5l.5 7.5h5l.5-7.5"/></svg>
+          </span>
+        </div>
+      </div>
+      <div class="habit-card-name">${h.name}</div>
+      <div class="habit-card-freq">${habitFreqLabel(h.frequency, h.customDays)}${h.desc ? ' · ' + h.desc : ''}</div>
+      <div class="habit-week-row">
+        ${days.map(d => `
+          <div class="hw-cell ${d.done ? 'done' : ''} ${d.isToday ? 'today' : ''} ${!d.scheduled ? 'off' : ''}"
+               ${d.scheduled ? `onclick="toggleHabitDay(${h.id}, '${d.dateStr}')"` : ''}>
+            <span class="hw-day">${d.label}</span>
+            <span class="hw-check">${habitCheckIcon}</span>
+          </div>`).join('')}
+      </div>
+      <div class="habit-card-bottom">
+        <div class="streak-badge">${habitFlameIcon} ${streak} day streak</div>
+        ${todayScheduled
+          ? `<button class="habit-complete-btn ${todayDone ? 'done' : 'todo'}" onclick="toggleHabitToday(${h.id})">
+               ${todayDone ? 'Done today' : 'Mark today'}
+             </button>`
+          : `<span style="font-size:.78rem;color:var(--text-3);">Not scheduled today</span>`}
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+
+  // "Add new habit" card
+  const addCard = document.createElement('div');
+  addCard.className = 'add-habit-card';
+  addCard.onclick = openCreateHabit;
+  addCard.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg><p>Add new habit</p>`;
+  grid.appendChild(addCard);
+}
+
+// ── Toggle today ─────────────────────────────────────────────────────────────
 async function toggleHabitToday(id) {
   const h = state.habits.find(h => h.id === id);
   if (!h) return;
-  if (!h.todayDone) {
-    await api.markHabitComplete(id);
-    h.todayDone = true;
-    h.streak += 1;
-    h.days[6] = true;
+  const todayStr = new Date().toDateString();
+  if ((h.completions || []).includes(todayStr)) {
+    h.completions = h.completions.filter(d => d !== todayStr);
   } else {
-    h.todayDone = false;
-    h.streak = Math.max(0, h.streak - 1);
-    h.days[6] = false;
+    await api.markHabitComplete(id);
+    h.completions = [...(h.completions || []), todayStr];
   }
   persistState();
   renderDashboard();
   renderHabits();
-  showToast(h.todayDone ? `${h.name} done` : 'Habit unmarked');
+  showToast((h.completions || []).includes(new Date().toDateString()) ? `${h.name} done` : 'Habit unmarked');
 }
 
-function toggleHabitDay(id, dayIdx) {
+// ── Toggle a specific day cell ────────────────────────────────────────────────
+function toggleHabitDay(id, dateStr) {
   const h = state.habits.find(h => h.id === id);
   if (!h) return;
-  h.days[dayIdx] = !h.days[dayIdx];
-  h.streak = h.days.filter(Boolean).length;
+  if ((h.completions || []).includes(dateStr)) {
+    h.completions = h.completions.filter(d => d !== dateStr);
+  } else {
+    h.completions = [...(h.completions || []), dateStr];
+  }
   persistState();
   renderHabits();
 }
 
-function renderHabits() {
-  if (!document.getElementById('habits-grid')) return;
-  const habitIcon = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="8"/><path d="M10 6v4l2.5 2.5"/></svg>`;
-  const checkIcon = `<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2"><path d="M1.5 5l2.5 2.5 4.5-4.5"/></svg>`;
-  const flameIcon = `<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 1c0 3-3 4-3 6.5C3 9.4 4.3 11 6 11s3-1.6 3-3.5C9 5 6 4 6 1z"/></svg>`;
-  document.getElementById('habits-grid').innerHTML = state.habits.map(h => `
-    <div class="habit-card">
-      <div class="habit-card-top">
-        <div class="habit-card-icon">${habitIcon}</div>
-        <span class="habit-card-menu" onclick="deleteHabit(${h.id})" title="Delete">
-          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3.5h10M5.5 3.5V2.5h3v1M4 3.5l.5 7.5h5l.5-7.5"/></svg>
-        </span>
-      </div>
-      <div class="habit-card-name">${h.name}</div>
-      <div class="habit-card-freq">${h.freq}</div>
-      <div class="habit-week-row">
-        ${h.days.map((d, i) => `
-          <div class="hw-cell ${d ? 'done' : ''} ${i === 6 ? 'today' : ''}" onclick="toggleHabitDay(${h.id},${i})">
-            <span class="hw-day">${dayLabels[i]}</span>
-            <span class="hw-check">${checkIcon}</span>
-          </div>`).join('')}
-      </div>
-      <div class="habit-card-bottom">
-        <div class="streak-badge">${flameIcon} ${h.streak} day streak</div>
-        <button class="habit-complete-btn ${h.todayDone ? 'done' : 'todo'}" onclick="toggleHabitToday(${h.id})">
-          ${h.todayDone ? 'Done today' : 'Mark today'}
-        </button>
-      </div>
-    </div>
-  `).join('') + `
-    <div class="add-habit-card" onclick="showPage('create',null)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg>
-      <p>Add new habit</p>
-    </div>`;
+// ── Create / Edit modal ───────────────────────────────────────────────────────
+let _habitEditingId  = null;
+let _habitSelFreq    = 'daily';
+let _habitSelDays    = [];
+
+function openCreateHabit() {
+  _habitEditingId = null;
+  _setHabitModalTitle('Create Habit', 'Track a recurring behaviour to build streaks');
+  _clearHabitForm();
+  _habitSetFreq('daily', []);
+  _showHabitModal();
 }
 
-async function deleteHabit(id) {
-  await api.deleteHabit(id);
-  state.habits = state.habits.filter(h => h.id !== id);
+function openEditHabit(id) {
+  const h = state.habits.find(x => x.id === id);
+  if (!h) return;
+  _habitEditingId = id;
+  _setHabitModalTitle('Edit Habit', 'Update your habit details');
+  document.getElementById('habit-name').value     = h.name;
+  document.getElementById('habit-desc').value     = h.desc || '';
+  document.getElementById('habit-category').value = h.category || 'Health';
+  _habitSetFreq(h.frequency || 'daily', h.customDays || []);
+  _showHabitModal();
+}
+
+function closeHabitModal(e) {
+  if (e && e.target !== document.getElementById('habit-modal')) return;
+  document.getElementById('habit-modal').style.display = 'none';
+}
+
+function _showHabitModal()  { document.getElementById('habit-modal').style.display = 'flex'; }
+function _setHabitModalTitle(t, s) {
+  document.getElementById('habit-modal-title').textContent = t;
+  document.getElementById('habit-modal-sub').textContent   = s;
+}
+function _clearHabitForm() {
+  document.getElementById('habit-name').value     = '';
+  document.getElementById('habit-desc').value     = '';
+  document.getElementById('habit-category').value = 'Health';
+}
+
+function _habitSetFreq(freq, days) {
+  _habitSelFreq = freq;
+  _habitSelDays = days ? [...days] : [];
+  document.querySelectorAll('#freq-btns button').forEach(b => {
+    const sel = b.dataset.freq === freq;
+    b.classList.toggle('sel', sel);
+    b.classList.toggle('low', sel);
+    b.classList.toggle('medium', !sel);
+  });
+  const customEl = document.getElementById('custom-days');
+  if (customEl) customEl.style.display = freq === 'custom' ? 'block' : 'none';
+  document.querySelectorAll('.day-btn').forEach(b => {
+    const on = _habitSelDays.includes(b.dataset.day);
+    b.classList.toggle('sel', on);
+    b.classList.toggle('low', on);
+    b.classList.toggle('medium', !on);
+  });
+}
+
+function selectFreq(btn) { _habitSetFreq(btn.dataset.freq, []); }
+
+function toggleDay(btn) {
+  const day = btn.dataset.day;
+  if (_habitSelDays.includes(day)) {
+    _habitSelDays = _habitSelDays.filter(d => d !== day);
+  } else {
+    _habitSelDays.push(day);
+  }
+  const on = _habitSelDays.includes(day);
+  btn.classList.toggle('sel', on);
+  btn.classList.toggle('low', on);
+  btn.classList.toggle('medium', !on);
+}
+
+function saveHabit() {
+  const name = document.getElementById('habit-name').value.trim();
+  if (!name) { showToast('Please enter a habit name'); return; }
+
+  if (_habitEditingId !== null) {
+    const h = state.habits.find(x => x.id === _habitEditingId);
+    if (h) {
+      h.name       = name;
+      h.desc       = document.getElementById('habit-desc').value.trim();
+      h.frequency  = _habitSelFreq;
+      h.customDays = [..._habitSelDays];
+      h.category   = document.getElementById('habit-category').value;
+    }
+  } else {
+    state.habits.push({
+      id:          Date.now(),
+      name,
+      desc:        document.getElementById('habit-desc').value.trim(),
+      frequency:   _habitSelFreq,
+      customDays:  [..._habitSelDays],
+      category:    document.getElementById('habit-category').value,
+      completions: [],
+      createdAt:   new Date().toISOString(),
+    });
+  }
+
   persistState();
+  document.getElementById('habit-modal').style.display = 'none';
+  renderHabits();
+  showToast(_habitEditingId ? 'Habit updated' : 'Habit created');
+}
+
+// ── Delete modal ──────────────────────────────────────────────────────────────
+let _deletingHabitId = null;
+
+function openDeleteHabit(id) {
+  _deletingHabitId = id;
+  document.getElementById('delete-habit-modal').style.display = 'flex';
+}
+function closeDeleteHabitModal() {
+  document.getElementById('delete-habit-modal').style.display = 'none';
+  _deletingHabitId = null;
+}
+async function confirmDeleteHabit() {
+  await api.deleteHabit(_deletingHabitId);
+  state.habits = state.habits.filter(h => h.id !== _deletingHabitId);
+  persistState();
+  closeDeleteHabitModal();
   renderHabits();
   showToast('Habit deleted');
 }
+
+// Keep old deleteHabit name as alias so any stale references still work
+function deleteHabit(id) { openDeleteHabit(id); }
 
 
 function renderFocusTasks() {
@@ -774,6 +995,7 @@ function switchSettingsTab(el, tab) {
 let toastTimer;
 function showToast(msg) {
   const t = document.getElementById('toast');
+  if (!t) return;
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(toastTimer);

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const habitController = require('../controllers/habitController');
+const habitController = require('../Controllers/habitController');
 const auth = require('../middleware/auth');
 
 // Create a new habit

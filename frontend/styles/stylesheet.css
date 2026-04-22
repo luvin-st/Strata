@@ -217,6 +217,7 @@ body.dark .cat-Health{background:rgba(239,68,68,.15);}
 .hw-cell{flex:1;aspect-ratio:1;border-radius:8px;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-direction:column;cursor:pointer;transition:all .15s;position:relative;}
 .hw-cell.done{background:var(--grad);border-color:transparent;}
 .hw-cell.today{border-color:var(--blue);}
+.hw-cell.off{opacity:.25;cursor:default;pointer-events:none;}
 .hw-day{font-size:.6rem;font-weight:700;color:var(--text-3);}
 .hw-cell.done .hw-day{color:rgba(255,255,255,.7);}
 .hw-check{font-size:.7rem;color:#fff;display:none;position:absolute;}

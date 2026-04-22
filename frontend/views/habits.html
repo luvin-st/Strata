@@ -6,7 +6,7 @@
         <title>Strata - Habits</title>
         <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="../styles/stylesheet.css">
-        <script src="../scripts/script.js"></script>
+        <script src="../scripts/script.js" defer></script>
     </head>
     <body>
 
@@ -63,9 +63,9 @@
                         <div class="icon-btn" title="Toggle dark mode" onclick="setDarkMode(!state.darkMode)">
                             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13.5 10A6 6 0 016 2.5a6 6 0 100 11 6 6 0 007.5-3.5z"/></svg>
                         </div>
-                        <button class="btn-primary" onclick="showPage('create',document.querySelectorAll('.nav-item')[1])">
+                        <button class="btn-primary" onclick="openCreateHabit()">
                             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v10M3 8h10"/></svg>
-                            New Task
+                            New Habit
                         </button>
                     </div>
                 </div>
@@ -74,6 +74,11 @@
 
                     <div id="page-habits" class="page-section" style="display:block;">
                         <div class="habits-grid" id="habits-grid"></div>
+                        <div id="habits-empty" style="display:none; text-align:center; padding:60px 20px; color:var(--text-3);">
+                            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:16px;opacity:.4"><circle cx="24" cy="24" r="20"/><path d="M24 14v10l6 6"/></svg>
+                            <p style="font-size:1.05rem;font-weight:500;margin-bottom:6px;">No habits yet</p>
+                            <p style="font-size:.9rem;">Click <strong>New Habit</strong> to start building a streak.</p>
+                        </div>
                     </div>
 
                 </div>
@@ -124,6 +129,72 @@
                 </div>
             </div>
         </div>
+        <!-- ── Create / Edit Habit Modal ─────────────────────────────────── -->
+        <div class="modal-overlay" id="habit-modal" style="display:none;" onclick="closeHabitModal(event)">
+            <div class="modal-box" style="max-width:480px;width:100%;" onclick="event.stopPropagation()">
+                <div class="modal-title" id="habit-modal-title">Create Habit</div>
+                <div class="modal-sub"   id="habit-modal-sub">Track a recurring behaviour to build streaks</div>
+                <div style="display:flex;flex-direction:column;gap:14px;margin-top:20px;">
+                    <div class="field-group" style="margin-bottom:0">
+                        <label class="field-label">Habit name</label>
+                        <input class="field-input" id="habit-name" type="text" placeholder="e.g. Read for 20 minutes">
+                    </div>
+                    <div class="field-group" style="margin-bottom:0">
+                        <label class="field-label">Description <span style="font-weight:400;opacity:.6">(optional)</span></label>
+                        <textarea class="field-textarea" id="habit-desc" placeholder="Why does this habit matter to you?" style="min-height:72px;"></textarea>
+                    </div>
+                    <div class="field-group" style="margin-bottom:0">
+                        <label class="field-label">Frequency</label>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;" id="freq-btns">
+                            <button class="prio-btn low sel" data-freq="daily"    onclick="selectFreq(this)">Daily</button>
+                            <button class="prio-btn medium"  data-freq="weekdays" onclick="selectFreq(this)">Weekdays</button>
+                            <button class="prio-btn medium"  data-freq="custom"   onclick="selectFreq(this)">Custom</button>
+                        </div>
+                    </div>
+                    <div id="custom-days" style="display:none;">
+                        <label class="field-label">Repeat on</label>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                            <button class="prio-btn medium day-btn" data-day="Mon" onclick="toggleDay(this)">Mon</button>
+                            <button class="prio-btn medium day-btn" data-day="Tue" onclick="toggleDay(this)">Tue</button>
+                            <button class="prio-btn medium day-btn" data-day="Wed" onclick="toggleDay(this)">Wed</button>
+                            <button class="prio-btn medium day-btn" data-day="Thu" onclick="toggleDay(this)">Thu</button>
+                            <button class="prio-btn medium day-btn" data-day="Fri" onclick="toggleDay(this)">Fri</button>
+                            <button class="prio-btn medium day-btn" data-day="Sat" onclick="toggleDay(this)">Sat</button>
+                            <button class="prio-btn medium day-btn" data-day="Sun" onclick="toggleDay(this)">Sun</button>
+                        </div>
+                    </div>
+                    <div class="field-group" style="margin-bottom:0">
+                        <label class="field-label">Category</label>
+                        <select class="field-select" id="habit-category">
+                            <option value="Health">Health</option>
+                            <option value="Fitness">Fitness</option>
+                            <option value="Learning">Learning</option>
+                            <option value="Mindfulness">Mindfulness</option>
+                            <option value="Work">Work</option>
+                            <option value="Personal">Personal</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-actions" style="margin-top:24px;">
+                    <button class="btn-outline" onclick="closeHabitModal()">Cancel</button>
+                    <button class="btn-save" onclick="saveHabit()">Save Habit</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Delete Habit Modal ─────────────────────────────────────────── -->
+        <div class="modal-overlay" id="delete-habit-modal" style="display:none;">
+            <div class="modal-box">
+                <div class="modal-title">Delete habit?</div>
+                <div class="modal-sub">This will remove all streak data. This cannot be undone.</div>
+                <div class="modal-actions">
+                    <button class="btn-outline" onclick="closeDeleteHabitModal()">Cancel</button>
+                    <button class="btn-save" style="background:#dc2626;box-shadow:none;" onclick="confirmDeleteHabit()">Delete</button>
+                </div>
+            </div>
+        </div>
+
         <div class="toast" id="toast"></div>
 
     </body>

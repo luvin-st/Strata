@@ -218,9 +218,13 @@ const today = new Date().toISOString().split('T')[0];
   const nameEl   = document.getElementById('user-name-display');
   const avatarEl = document.getElementById('user-avatar');
   const greetEl  = document.getElementById('greeting-text');
+  const emailEl  = document.getElementById('user-email-display');
+  const hour     = new Date().getHours();
+  const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
   if (nameEl)   nameEl.textContent   = state.user.name;
   if (avatarEl) avatarEl.textContent = state.user.name[0].toUpperCase();
-  if (greetEl)  greetEl.textContent  = `Good morning, ${state.user.name.split(' ')[0]}`;
+  if (greetEl)  greetEl.textContent  = `Good ${timeOfDay}, ${state.user.name.split(' ')[0]}`;
+  if (emailEl)  emailEl.textContent  = state.user.email;
 })();
 
 // Persist state changes back to sessionStorage so they survive page navigation

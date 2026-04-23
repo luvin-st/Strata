@@ -14,9 +14,10 @@ The goal is to make productivity feel sustainable and easy to maintain.
 - Intuitive user experience
 
 ## Tech Stack
-- Frontend: TBD (Bukunmi) 
-- Backend: TBD (Denilson)
-- Database: TBD
+- Frontend: HTML, CSS, JavaScript
+- Backend: Node.js, Express
+- Database: PostgreSQL
+- ORM: Prisma
 
 ## Team Members
 - Shaden AlGhamdi

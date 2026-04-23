@@ -489,13 +489,20 @@ function switchTab(el, tab) {
 
 
 async function toggleTask(id) {
-  await api.markComplete(id);
   const t = state.tasks.find(t => t.id === id);
-  if (t) t.completed = !t.completed;
+  if (!t) return;
+  if (!t.completed) {
+    await api.markComplete(id);
+    t.completed = true;
+    showToast('Task completed');
+  } else {
+    await api.unmarkComplete(id);
+    t.completed = false;
+    showToast('Task reopened');
+  }
   persistState();
   renderDashboard();
   renderAllTasks();
-  showToast(t && t.completed ? 'Task completed' : 'Task reopened');
 }
 
 function renderAllTasks() {
@@ -845,7 +852,7 @@ function toggleDay(btn) {
   btn.classList.toggle('medium', !on);
 }
 
-function saveHabit() {
+async function saveHabit() {
   const name = document.getElementById('habit-name').value.trim();
   if (!name) { showToast('Please enter a habit name'); return; }
 
@@ -859,16 +866,22 @@ function saveHabit() {
       h.category   = document.getElementById('habit-category').value;
     }
   } else {
-    state.habits.push({
-      id:          Date.now(),
-      name,
-      desc:        document.getElementById('habit-desc').value.trim(),
-      frequency:   _habitSelFreq,
-      customDays:  [..._habitSelDays],
-      category:    document.getElementById('habit-category').value,
-      completions: [],
-      createdAt:   new Date().toISOString(),
-    });
+  const payload = {
+    name,
+    description: document.getElementById('habit-desc').value.trim(),
+    frequency:   _habitSelFreq,
+    category:    document.getElementById('habit-category').value,
+  };
+  const newHabit = await api.createHabit(payload);
+  state.habits.push({
+    ...newHabit,
+    desc:        newHabit.description || '',
+    frequency:   newHabit.frequency  || 'daily',
+    customDays:  _habitSelDays,
+    category:    newHabit.category   || 'Health',
+    completions: [],
+    createdAt:   newHabit.createdAt  || new Date().toISOString(),
+  });
   }
 
   persistState();

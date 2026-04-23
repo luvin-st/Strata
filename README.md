@@ -73,7 +73,7 @@ npm run dev
 The backend will be running at `http://localhost:3000`.
 
 ### Step 7 — Open the frontend
-Open the `frontend` folder in VS Code, then right click `index.html` and select **Open with Live Server**. The app will open in your browser at `http://127.0.0.1:5500`.
+Open the `frontend` folder in VS Code, then right click `login.html` and select **Open with Live Server**. The app will open in your browser at `http://127.0.0.1:5500`.
 
 You can now register a new account and use the application.
 

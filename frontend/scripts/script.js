@@ -194,6 +194,7 @@ let state = {
 const today = new Date().toISOString().split('T')[0];
 
 // Restore persisted session data (set after login, shared across pages)
+// State restoration runs immediately so data is available before render functions fire
 (function restoreSession() {
   try {
     const savedToken = sessionStorage.getItem('strata_token');
@@ -213,8 +214,10 @@ const today = new Date().toISOString().split('T')[0];
     const savedHabits = sessionStorage.getItem('strata_habits');
     if (savedHabits) state.habits = JSON.parse(savedHabits);
   } catch(e) { /* ignore parse errors */ }
+})();
 
-  // Safely update user info elements present on any page
+// Update user info elements in the sidebar/header — must run after DOM is ready
+function applyUserToDOM() {
   const nameEl   = document.getElementById('user-name-display');
   const avatarEl = document.getElementById('user-avatar');
   const greetEl  = document.getElementById('greeting-text');
@@ -225,7 +228,7 @@ const today = new Date().toISOString().split('T')[0];
   if (avatarEl) avatarEl.textContent = state.user.name[0].toUpperCase();
   if (greetEl)  greetEl.textContent  = `Good ${timeOfDay}, ${state.user.name.split(' ')[0]}`;
   if (emailEl)  emailEl.textContent  = state.user.email;
-})();
+}
 
 // Persist state changes back to sessionStorage so they survive page navigation
 function persistState() {
@@ -285,7 +288,8 @@ async function handleLogin() {
   } else {
     const res = await api.login(email, password);
     if (!res.token) { showToast('Invalid email or password'); return; }
-    state.user.name = name || email.split('@')[0];
+    state.user.name  = res.name  || email.split('@')[0];
+    state.user.email = res.email || email;
   }
 
   // Load real tasks from database
@@ -489,20 +493,13 @@ function switchTab(el, tab) {
 
 
 async function toggleTask(id) {
+  await api.markComplete(id);
   const t = state.tasks.find(t => t.id === id);
-  if (!t) return;
-  if (!t.completed) {
-    await api.markComplete(id);
-    t.completed = true;
-    showToast('Task completed');
-  } else {
-    await api.unmarkComplete(id);
-    t.completed = false;
-    showToast('Task reopened');
-  }
+  if (t) t.completed = !t.completed;
   persistState();
   renderDashboard();
   renderAllTasks();
+  showToast(t && t.completed ? 'Task completed' : 'Task reopened');
 }
 
 function renderAllTasks() {
@@ -852,7 +849,7 @@ function toggleDay(btn) {
   btn.classList.toggle('medium', !on);
 }
 
-async function saveHabit() {
+function saveHabit() {
   const name = document.getElementById('habit-name').value.trim();
   if (!name) { showToast('Please enter a habit name'); return; }
 
@@ -866,22 +863,16 @@ async function saveHabit() {
       h.category   = document.getElementById('habit-category').value;
     }
   } else {
-  const payload = {
-    name,
-    description: document.getElementById('habit-desc').value.trim(),
-    frequency:   _habitSelFreq,
-    category:    document.getElementById('habit-category').value,
-  };
-  const newHabit = await api.createHabit(payload);
-  state.habits.push({
-    ...newHabit,
-    desc:        newHabit.description || '',
-    frequency:   newHabit.frequency  || 'daily',
-    customDays:  _habitSelDays,
-    category:    newHabit.category   || 'Health',
-    completions: [],
-    createdAt:   newHabit.createdAt  || new Date().toISOString(),
-  });
+    state.habits.push({
+      id:          Date.now(),
+      name,
+      desc:        document.getElementById('habit-desc').value.trim(),
+      frequency:   _habitSelFreq,
+      customDays:  [..._habitSelDays],
+      category:    document.getElementById('habit-category').value,
+      completions: [],
+      createdAt:   new Date().toISOString(),
+    });
   }
 
   persistState();
@@ -965,14 +956,18 @@ function skipFocus() {
 }
 
 function updateFocusClock() {
+  const minEl  = document.getElementById('focus-min');
+  if (!minEl) return;
+  const secEl  = document.getElementById('focus-sec');
+  const ringEl = document.getElementById('timer-ring');
+  const progEl = document.getElementById('focus-progress-text');
   const m = Math.floor(state.focusSeconds / 60);
   const s = state.focusSeconds % 60;
-  document.getElementById('focus-min').textContent = String(m).padStart(2, '0');
-  document.getElementById('focus-sec').textContent = String(s).padStart(2, '0');
+  minEl.textContent  = String(m).padStart(2, '0');
+  secEl.textContent  = String(s).padStart(2, '0');
   const pct = state.focusSeconds / (25 * 60);
-  document.getElementById('timer-ring').style.strokeDashoffset = 534 * (1 - pct);
-  document.getElementById('focus-progress-text').textContent =
-    `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')} remaining · Pomodoro session`;
+  ringEl.style.strokeDashoffset = 534 * (1 - pct);
+  progEl.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')} remaining · Pomodoro session`;
 }
 
 function exitFocus() {
@@ -1077,6 +1072,9 @@ function showToast(msg) {
   toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-updateFocusClock();
-initDarkMode();
-initCurrentPage();
+document.addEventListener('DOMContentLoaded', () => {
+  applyUserToDOM();
+  updateFocusClock();
+  initDarkMode();
+  initCurrentPage();
+});

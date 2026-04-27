@@ -221,12 +221,15 @@ function applyUserToDOM() {
   const nameEl   = document.getElementById('user-name-display');
   const avatarEl = document.getElementById('user-avatar');
   const greetEl  = document.getElementById('greeting-text');
+  const emailEl  = document.getElementById('user-email-display');
   const hour     = new Date().getHours();
   const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
-  if (nameEl)   nameEl.textContent   = state.user.name;
-  if (avatarEl) avatarEl.textContent = state.user.name[0].toUpperCase();
-  if (greetEl)  greetEl.textContent  = `Good ${timeOfDay}, ${state.user.name.split(' ')[0]}`;
-  if (emailEl)  emailEl.textContent  = state.user.email;
+  const firstName = (state.user.name || '').split(' ')[0];
+  const initial   = (state.user.name || '?')[0].toUpperCase();
+  if (nameEl)   nameEl.textContent   = state.user.name || '';
+  if (avatarEl) avatarEl.textContent = initial;
+  if (greetEl)  greetEl.textContent  = `Good ${timeOfDay}, ${firstName}`;
+  if (emailEl)  emailEl.textContent  = state.user.email || '';
 }
 
 // Persist state changes back to sessionStorage so they survive page navigation
@@ -380,21 +383,34 @@ function showPage(page, navEl) {
 
 // Auto-init: call the right render function based on which page we're on
 function initCurrentPage() {
-  if (document.getElementById('page-dashboard')) { renderDashboard(); }
-  if (document.getElementById('page-tasks'))     {
-    // Check if arriving via ?create=1
+  if (document.getElementById('page-dashboard')) {
+    showView('app');
+    document.getElementById('page-dashboard').style.display = 'block';
+    renderDashboard();
+  }
+  if (document.getElementById('page-tasks')) {
+    showView('app');
     const params = new URLSearchParams(window.location.search);
     if (params.get('create') === '1') {
       document.getElementById('page-tasks').style.display = 'none';
       const createEl = document.getElementById('page-create');
       if (createEl) { createEl.style.display = 'block'; initCreateForm(); }
     } else {
+      document.getElementById('page-tasks').style.display = 'block';
       renderAllTasks();
     }
   }
-  if (document.getElementById('page-habits'))   { renderHabits(); }
-  if (document.getElementById('page-settings')) { renderSettings('profile'); }
-  if (document.getElementById('view-focus'))     { renderFocusTasks(); }
+  if (document.getElementById('page-habits')) {
+    showView('app');
+    document.getElementById('page-habits').style.display = 'block';
+    renderHabits();
+  }
+  if (document.getElementById('page-settings')) {
+    showView('app');
+    document.getElementById('page-settings').style.display = 'block';
+    renderSettings('profile');
+  }
+  if (document.getElementById('view-focus')) { renderFocusTasks(); }
 }
 
 

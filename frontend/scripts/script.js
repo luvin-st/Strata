@@ -194,6 +194,7 @@ let state = {
 const today = new Date().toISOString().split('T')[0];
 
 // Restore persisted session data (set after login, shared across pages)
+// State restoration runs immediately so data is available before render functions fire
 (function restoreSession() {
   try {
     const savedToken = sessionStorage.getItem('strata_token');
@@ -213,8 +214,10 @@ const today = new Date().toISOString().split('T')[0];
     const savedHabits = sessionStorage.getItem('strata_habits');
     if (savedHabits) state.habits = JSON.parse(savedHabits);
   } catch(e) { /* ignore parse errors */ }
+})();
 
-  // Safely update user info elements present on any page
+// Update user info elements in the sidebar/header — must run after DOM is ready
+function applyUserToDOM() {
   const nameEl   = document.getElementById('user-name-display');
   const avatarEl = document.getElementById('user-avatar');
   const greetEl  = document.getElementById('greeting-text');
@@ -225,7 +228,7 @@ const today = new Date().toISOString().split('T')[0];
   if (avatarEl) avatarEl.textContent = state.user.name[0].toUpperCase();
   if (greetEl)  greetEl.textContent  = `Good ${timeOfDay}, ${state.user.name.split(' ')[0]}`;
   if (emailEl)  emailEl.textContent  = state.user.email;
-})();
+}
 
 // Persist state changes back to sessionStorage so they survive page navigation
 function persistState() {
@@ -952,14 +955,18 @@ function skipFocus() {
 }
 
 function updateFocusClock() {
+  const minEl  = document.getElementById('focus-min');
+  if (!minEl) return;
+  const secEl  = document.getElementById('focus-sec');
+  const ringEl = document.getElementById('timer-ring');
+  const progEl = document.getElementById('focus-progress-text');
   const m = Math.floor(state.focusSeconds / 60);
   const s = state.focusSeconds % 60;
-  document.getElementById('focus-min').textContent = String(m).padStart(2, '0');
-  document.getElementById('focus-sec').textContent = String(s).padStart(2, '0');
+  minEl.textContent  = String(m).padStart(2, '0');
+  secEl.textContent  = String(s).padStart(2, '0');
   const pct = state.focusSeconds / (25 * 60);
-  document.getElementById('timer-ring').style.strokeDashoffset = 534 * (1 - pct);
-  document.getElementById('focus-progress-text').textContent =
-    `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')} remaining · Pomodoro session`;
+  ringEl.style.strokeDashoffset = 534 * (1 - pct);
+  progEl.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')} remaining · Pomodoro session`;
 }
 
 function exitFocus() {
@@ -1064,6 +1071,9 @@ function showToast(msg) {
   toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-updateFocusClock();
-initDarkMode();
-initCurrentPage();
+document.addEventListener('DOMContentLoaded', () => {
+  applyUserToDOM();
+  updateFocusClock();
+  initDarkMode();
+  initCurrentPage();
+});

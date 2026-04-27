@@ -81,7 +81,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text
 .nav-icon{width:20px;height:20px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:currentColor;}
 .nav-icon svg{width:16px;height:16px;}
 .nav-badge{margin-left:auto;background:var(--blue);color:#fff;font-size:.65rem;font-weight:700;padding:2px 7px;border-radius:20px;}
-.sidebar-user{padding:16px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;cursor:pointer;transition:border-color .25s;}
+.sidebar-user{padding:16px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;cursor:pointer;transition:background .2s,border-color .25s;border-radius:0 0 var(--r) var(--r);}
+.sidebar-user:hover{background:rgba(69,117,243,.07);border-color:var(--border-med);}
+.sidebar-user:hover .user-email{color:var(--blue);}
 .user-avatar{width:36px;height:36px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.9rem;flex-shrink:0;}
 .user-info{flex:1;overflow:hidden;}
 .user-name{font-size:.88rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}

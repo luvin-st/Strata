@@ -221,7 +221,6 @@ function applyUserToDOM() {
   const nameEl   = document.getElementById('user-name-display');
   const avatarEl = document.getElementById('user-avatar');
   const greetEl  = document.getElementById('greeting-text');
-  const emailEl  = document.getElementById('user-email-display');
   const hour     = new Date().getHours();
   const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
   if (nameEl)   nameEl.textContent   = state.user.name;
@@ -288,7 +287,8 @@ async function handleLogin() {
   } else {
     const res = await api.login(email, password);
     if (!res.token) { showToast('Invalid email or password'); return; }
-    state.user.name = name || email.split('@')[0];
+    state.user.name  = res.name  || email.split('@')[0];
+    state.user.email = res.email || email;
   }
 
   // Load real tasks from database

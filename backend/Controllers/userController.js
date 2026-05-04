@@ -22,11 +22,13 @@ const { uploadToCloudinary } = require('../middleware/upload');
 exports.register = async (req, res) => {
   const { name, email, password } = req.body;
 
-    if (!name || !email || !password) {
+  if (!name || !email || !password) {
     return res.status(400).json({ message: 'All fields required' });
   }
 
-  if (!email.includes('@')) {
+  // Check for @ and a . after the @
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
     return res.status(400).json({ message: 'Invalid email format' });
   }
 
@@ -36,6 +38,11 @@ exports.register = async (req, res) => {
 
   if (!/\d/.test(password)) {
     return res.status(400).json({ message: 'Password must contain a number' });
+  }
+
+  // Check for at least one special character
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    return res.status(400).json({ message: 'Password must contain a special character' });
   }
 
   try {

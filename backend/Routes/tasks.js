@@ -5,7 +5,7 @@ const auth = require('../middleware/auth');
 
 router.post('/', auth, taskController.createTask);
 router.get('/', auth, taskController.getAllTasks);
-router.get('/sorted', auth, taskController.getTasksSorted);
+router.get('/search', auth, taskController.searchTasks);
 router.put('/:id', auth, taskController.editTask);
 router.delete('/:id', auth, taskController.deleteTask);
 router.patch('/:id/complete', auth, taskController.markComplete);

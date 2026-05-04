@@ -34,17 +34,34 @@ exports.getAllTasks = async (req, res) => {
   }
 };
 
-//fetches all tasks for a user from database, sorted by a criterion (,title, priority, due date, or category)
-exports.getTasksSorted = async (req, res) => {
-  const { sortBy } = req.query;
+//searches tasks based on keyword, category, and priority
+exports.searchTasks = async (req, res) => {
+  const { keyword, category, priority } = req.query;
   try {
-    const tasks = await prisma.task.findMany({
-      where: { userId: req.user.userId },
-      orderBy: { [sortBy]: 'asc' }
-    });
+    const filters = {
+      userId: req.user.userId,
+      AND: [],
+    };
+
+    if (keyword) {
+      filters.AND.push({
+        OR: [
+          { title:       { contains: keyword, mode: 'insensitive' } },
+          { description: { contains: keyword, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    if (category) filters.AND.push({ category });
+    if (priority) filters.AND.push({ priority });
+
+    if (!filters.AND.length) delete filters.AND;
+
+    const tasks = await prisma.task.findMany({ where: filters });
     res.json(tasks);
   } catch (err) {
-    res.status(500).json({ message: 'Could not fetch tasks' });
+    console.error('searchTasks error:', err);
+    res.status(500).json({ message: 'Could not search tasks' });
   }
 };
 

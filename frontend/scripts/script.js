@@ -324,6 +324,43 @@ function toggleAuth() {
 //   // Redirect to dashboard after login
 //   window.location.href = 'dashboard.html';
 // }
+
+function toggleSearch() {
+  const bar = document.getElementById('search-bar');
+  if (!bar) return;
+  const visible = bar.style.display === 'block';
+  bar.style.display = visible ? 'none' : 'block';
+  if (!visible) document.getElementById('search-input').focus();
+}
+
+function runSearch() {
+  const query   = document.getElementById('search-input').value.trim().toLowerCase();
+  const results = document.getElementById('search-results');
+  if (!query) { results.innerHTML = ''; return; }
+
+  const matches = state.tasks.filter(t =>
+    t.title.toLowerCase().includes(query) ||
+    (t.description || '').toLowerCase().includes(query) ||
+    (t.category || '').toLowerCase().includes(query)
+  );
+
+  if (!matches.length) {
+    results.innerHTML = '<div style="padding:14px 16px;color:var(--text-3);font-size:.88rem;">No tasks found</div>';
+    return;
+  }
+
+  results.innerHTML = matches.map(t => `
+    <div style="padding:10px 8px;border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:background .15s;" 
+         onmouseover="this.style.background='var(--surface)'" 
+         onmouseout="this.style.background='transparent'"
+         onclick="toggleSearch()">
+      <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${t.priority==='high'?'#ef4444':t.priority==='medium'?'#f59e0b':'#22c55e'};"></div>
+      <div>
+        <div style="font-size:.88rem;font-weight:500;color:var(--text-1);${t.completed?'text-decoration:line-through;opacity:.5;':''}">${t.title}</div>
+        <div style="font-size:.75rem;color:var(--text-3);margin-top:2px;">${t.category}${t.dueDate?' · '+t.dueDate:''}</div>
+      </div>
+    </div>`).join('');
+}
 function clearErrors() {
   ['input-email', 'input-password'].forEach(id => {
     const el = document.getElementById(id);

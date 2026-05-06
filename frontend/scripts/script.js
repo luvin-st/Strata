@@ -278,10 +278,118 @@ function toggleAuth() {
   document.querySelector('.btn-full').textContent = isSignup ? 'Create Account' : 'Sign In';
 }
 
+
+// async function handleLogin() {
+//   const email    = document.getElementById('input-email').value;
+//   const password = document.getElementById('input-password').value;
+//   const name     = document.getElementById('input-name').value || 'User';
+
+//   if (isSignup) {
+//     await api.register(name, email, password);
+//     await api.login(email, password);
+//     state.user.name = name;
+//   } else {
+//     const res = await api.login(email, password);
+//     if (!res.token) { showToast('Invalid email or password'); return; }
+//     state.user.name  = res.name  || email.split('@')[0];
+//     state.user.email = res.email || email;
+//   }
+
+//   // Load real tasks from database
+//   const tasks = await api.getTasks();
+//   state.tasks = tasks.map(t => ({
+//     ...t,
+//     dueDate: t.dueDate ? t.dueDate.split('T')[0] : '',
+//     category: t.category || 'Work',
+//   }));
+
+//   // Load real habits from database
+//   const habits = await api.getHabits();
+//   state.habits = habits.map(h => ({
+//     id:          h.id,
+//     name:        h.name,
+//     desc:        h.description || '',
+//     frequency:   h.frequency || 'daily',
+//     customDays:  h.customDays || [],
+//     category:    h.category   || 'Health',
+//     completions: h.completions || [],
+//     createdAt:   h.createdAt  || '',
+//   }));
+
+//   // Store user info for other pages to pick up
+//   sessionStorage.setItem('strata_user', JSON.stringify(state.user));
+//   sessionStorage.setItem('strata_tasks', JSON.stringify(state.tasks));
+//   sessionStorage.setItem('strata_habits', JSON.stringify(state.habits));
+
+//   // Redirect to dashboard after login
+//   window.location.href = 'dashboard.html';
+// }
+function clearErrors() {
+  ['input-email', 'input-password'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('error');
+  });
+  ['error-email', 'error-password'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = ''; el.classList.remove('visible'); }
+  });
+  const b = document.getElementById('form-error-banner');
+  if (b) { b.textContent = ''; b.classList.remove('visible'); }
+}
+
+function setFieldError(inputId, errorId, msg) {
+  const input = document.getElementById(inputId);
+  const err   = document.getElementById(errorId);
+  if (input) input.classList.add('error');
+  if (err)   { err.textContent = msg; err.classList.add('visible'); }
+}
+
+function showFormError(msg) {
+  const banner = document.getElementById('form-error-banner');
+  if (banner) { banner.textContent = msg; banner.classList.add('visible'); }
+  const wrap = document.querySelector('.login-form-wrap');
+  if (wrap) {
+    wrap.classList.remove('shake');
+    void wrap.offsetWidth;
+    wrap.classList.add('shake');
+  }
+}
 async function handleLogin() {
-  const email    = document.getElementById('input-email').value;
+  clearErrors();
+  const email    = document.getElementById('input-email').value.trim();
   const password = document.getElementById('input-password').value;
   const name     = document.getElementById('input-name').value || 'User';
+
+  // Client-side validation
+  // Client-side validation
+  let valid = true;
+
+  if (isSignup) {
+    const trimmedName = document.getElementById('input-name').value.trim();
+    if (!trimmedName) {
+      setFieldError('input-name', 'error-name', 'Full name is required'); valid = false;
+    } else if (trimmedName.length < 2) {
+      setFieldError('input-name', 'error-name', 'Name must be at least 2 characters'); valid = false;
+    } else if (!/^[a-zA-Z\s]+$/.test(trimmedName)) {
+      setFieldError('input-name', 'error-name', 'Name can only contain letters'); valid = false;
+    }
+  }
+
+  if (!email) {
+    setFieldError('input-email', 'error-email', 'Email is required'); valid = false;
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    setFieldError('input-email', 'error-email', 'Enter a valid email address'); valid = false;
+  }
+
+  if (!password) {
+    setFieldError('input-password', 'error-password', 'Password is required'); valid = false;
+  } else if (isSignup && (password.length < 6 || password.length > 12)) {
+    setFieldError('input-password', 'error-password', 'Password must be 6–12 characters'); valid = false;
+  } else if (isSignup && !/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+    setFieldError('input-password', 'error-password', 'Password must include at least one special character'); valid = false;
+  }
+
+  if (!valid) return;
 
   if (isSignup) {
     await api.register(name, email, password);
@@ -289,7 +397,12 @@ async function handleLogin() {
     state.user.name = name;
   } else {
     const res = await api.login(email, password);
-    if (!res.token) { showToast('Invalid email or password'); return; }
+    if (!res.token) {
+      showFormError('Incorrect email or password. Please try again.');
+      document.getElementById('input-email').classList.add('error');
+      document.getElementById('input-password').classList.add('error');
+      return;
+    }
     state.user.name  = res.name  || email.split('@')[0];
     state.user.email = res.email || email;
   }

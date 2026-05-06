@@ -32,8 +32,12 @@ const api = {
     return res.json();
   },
 
-  async getTasksSorted() {
-    const res = await fetch(`${BASE_URL}/tasks/sorted`, {
+  async searchTasks(keyword, category, priority) {
+    const params = new URLSearchParams();
+    if (keyword) params.append('keyword', keyword);
+    if (category) params.append('category', category);
+    if (priority) params.append('priority', priority);
+    const res = await fetch(`${BASE_URL}/tasks/search?${params.toString()}`, {
       headers: { 'Authorization': `Bearer ${authToken}` },
     });
     return res.json();
@@ -87,8 +91,6 @@ const api = {
     return res.json();
   },
 
-  // ✅ granular updates
-
   async setCategory(id, category) {
     const res = await fetch(`${BASE_URL}/tasks/${id}/category`, {
       method: 'PATCH',
@@ -124,8 +126,6 @@ const api = {
     });
     return res.json();
   },
-
-  // habits
 
   async getHabits() {
     const res = await fetch(`${BASE_URL}/habits`, {
@@ -164,34 +164,21 @@ const api = {
 };
 
 let state = {
-  user: { name: 'Emily Johnson', email: 'emily@example.com' },
-  tasks: [
-    { id:1, title:'Prepare meeting agenda',      description:'Meeting with the marketing team.', priority:'high',   dueDate:'', completed:false, category:'Work'     },
-    { id:2, title:'Buy paint and brushes',        description:'',                                 priority:'medium', dueDate:'', completed:true,  category:'Personal' },
-    { id:3, title:'Remove old tiles',             description:'',                                 priority:'medium', dueDate:'', completed:false, category:'Home'     },
-    { id:4, title:'Send project brief',           description:'',                                 priority:'high',   dueDate:'', completed:true,  category:'Work'     },
-    { id:5, title:'Anniversary dinner reservation', description:'',                               priority:'low',    dueDate:'', completed:false, category:'Personal' },
-    { id:6, title:'Install new shelves',          description:'',                                 priority:'low',    dueDate:'', completed:false, category:'Home'     },
-  ],
-  habits: [
-    { id:101, name:'Morning run',     frequency:'daily',    customDays:[], category:'Fitness',  desc:'',                  completions:[], createdAt:'' },
-    { id:102, name:'Read 20 pages',   frequency:'daily',    customDays:[], category:'Learning', desc:'',                  completions:[], createdAt:'' },
-    { id:103, name:'Drink 8 glasses', frequency:'weekdays', customDays:[], category:'Health',   desc:'Stay hydrated',     completions:[], createdAt:'' },
-  ],
+  user: { name: '', email: '' },
+  tasks: [],
+  habits: [],
   priority: 'low',
   editingTaskId: null,
   deleteTarget: null,
   focusRunning: false,
   focusTimer: null,
   focusSeconds: 25 * 60,
-  focusTask: 'Prepare meeting agenda',
+  focusTask: '',
   focusTaskCat: 'Work',
   currentTab: 'today',
   currentFilter: 'all',
   darkMode: false,
 };
-
-const today = new Date().toISOString().split('T')[0];
 
 // Restore persisted session data (set after login, shared across pages)
 // State restoration runs immediately so data is available before render functions fire
@@ -213,34 +200,101 @@ const today = new Date().toISOString().split('T')[0];
 
     const savedHabits = sessionStorage.getItem('strata_habits');
     if (savedHabits) state.habits = JSON.parse(savedHabits);
-  } catch(e) { /* ignore parse errors */ }
+  } catch (e) { /* ignore parse errors */ }
 })();
+
+const today = new Date().toISOString().split('T')[0];
 
 // Update user info elements in the sidebar/header — must run after DOM is ready
 function applyUserToDOM() {
-  const nameEl   = document.getElementById('user-name-display');
+  const nameEl = document.getElementById('user-name-display');
   const avatarEl = document.getElementById('user-avatar');
-  const greetEl  = document.getElementById('greeting-text');
-  const emailEl  = document.getElementById('user-email-display');
-  const hour     = new Date().getHours();
+  const greetEl = document.getElementById('greeting-text');
+  const emailEl = document.getElementById('user-email-display');
+  const hour = new Date().getHours();
   const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
   const firstName = (state.user.name || '').split(' ')[0];
-  const initial   = (state.user.name || '?')[0].toUpperCase();
-  if (nameEl)   nameEl.textContent   = state.user.name || '';
+  const initial = (state.user.name || '?')[0].toUpperCase();
+  if (nameEl) nameEl.textContent = state.user.name || '';
   if (avatarEl) avatarEl.textContent = initial;
-  if (greetEl)  greetEl.textContent  = `Good ${timeOfDay}, ${firstName}`;
-  if (emailEl)  emailEl.textContent  = state.user.email || '';
+  if (greetEl) greetEl.textContent = `Good ${timeOfDay}, ${firstName}`;
+  if (emailEl) emailEl.textContent = state.user.email || '';
 }
 
 // Persist state changes back to sessionStorage so they survive page navigation
 function persistState() {
   try {
-    sessionStorage.setItem('strata_tasks',  JSON.stringify(state.tasks));
+    sessionStorage.setItem('strata_tasks', JSON.stringify(state.tasks));
     sessionStorage.setItem('strata_habits', JSON.stringify(state.habits));
-    sessionStorage.setItem('strata_user',   JSON.stringify(state.user));
-  } catch(e) {}
+    sessionStorage.setItem('strata_user', JSON.stringify(state.user));
+  } catch (e) { }
 }
 
+async function saveProfileSettings(btn) {
+  const inputs = btn.closest('.settings-section').querySelectorAll('.field-input');
+  const name = inputs[0].value.trim();
+  const email = inputs[1].value.trim();
+  if (!name || !email) { showToast('Name and email are required'); return; }
+  try {
+    await fetch(`${BASE_URL}/users/${state.user.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ name, email }),
+    });
+    state.user.name = name;
+    state.user.email = email;
+    persistState();
+    applyUserToDOM();
+    showToast('Profile saved');
+  } catch (e) {
+    showToast('Could not save profile');
+  }
+}
+
+async function changePassword(btn) {
+  const inputs = btn.closest('.settings-section').querySelectorAll('.field-input');
+  const currentPassword = inputs[0].value;
+  const newPassword     = inputs[1].value;
+  const confirmPassword = inputs[2].value;
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    showToast('All password fields are required'); return;
+  }
+  if (newPassword !== confirmPassword) {
+    showToast('New passwords do not match'); return;
+  }
+  if (newPassword.length < 6 || newPassword.length > 12) {
+    showToast('Password must be 6-12 characters'); return;
+  }
+  if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) {
+    showToast('Password must include a special character'); return;
+  }
+
+  try {
+    const res = await fetch(`${BASE_URL}/users/change-password`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast('Password updated successfully');
+      inputs[0].value = '';
+      inputs[1].value = '';
+      inputs[2].value = '';
+    } else {
+      showToast(data.message || 'Could not update password');
+    }
+  } catch (e) {
+    showToast('Could not update password');
+  }
+}
 
 function initDarkMode() {
   const saved = localStorage.getItem('strata-dark');
@@ -270,7 +324,7 @@ let isSignup = false;
 function toggleAuth() {
   isSignup = !isSignup;
   document.getElementById('auth-title').textContent = isSignup ? 'Create account' : 'Welcome back';
-  document.getElementById('auth-sub').textContent   = isSignup ? 'Start your Strata journey' : 'Sign in to your Strata account';
+  document.getElementById('auth-sub').textContent = isSignup ? 'Start your Strata journey' : 'Sign in to your Strata account';
   document.getElementById('signup-name-field').style.display = isSignup ? 'block' : 'none';
   document.querySelector('.login-toggle').innerHTML = isSignup
     ? 'Already have an account? <a onclick="toggleAuth()">Sign in</a>'
@@ -333,34 +387,33 @@ function toggleSearch() {
   if (!visible) document.getElementById('search-input').focus();
 }
 
-function runSearch() {
-  const query   = document.getElementById('search-input').value.trim().toLowerCase();
+async function runSearch() {
+  const query = document.getElementById('search-input').value.trim();
   const results = document.getElementById('search-results');
   if (!query) { results.innerHTML = ''; return; }
 
-  const matches = state.tasks.filter(t =>
-    t.title.toLowerCase().includes(query) ||
-    (t.description || '').toLowerCase().includes(query) ||
-    (t.category || '').toLowerCase().includes(query)
-  );
-
-  if (!matches.length) {
-    results.innerHTML = '<div style="padding:14px 16px;color:var(--text-3);font-size:.88rem;">No tasks found</div>';
-    return;
+  try {
+    const matches = await api.searchTasks(query);
+    if (!matches.length) {
+      results.innerHTML = '<div style="padding:14px 16px;color:var(--text-3);font-size:.88rem;">No tasks found</div>';
+      return;
+    }
+    results.innerHTML = matches.map(t => `
+      <div style="padding:10px 8px;border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:background .15s;"
+           onmouseover="this.style.background='var(--surface)'"
+           onmouseout="this.style.background='transparent'"
+           onclick="toggleSearch()">
+        <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${t.priority === 'high' ? '#ef4444' : t.priority === 'medium' ? '#f59e0b' : '#22c55e'};"></div>
+        <div>
+          <div style="font-size:.88rem;font-weight:500;color:var(--text-1);${t.completed ? 'text-decoration:line-through;opacity:.5;' : ''}">${t.title}</div>
+          <div style="font-size:.75rem;color:var(--text-3);margin-top:2px;">${t.category}${t.dueDate ? ' · ' + t.dueDate.split('T')[0] : ''}</div>
+        </div>
+      </div>`).join('');
+  } catch (e) {
+    results.innerHTML = '<div style="padding:14px 16px;color:var(--text-3);font-size:.88rem;">Search unavailable</div>';
   }
-
-  results.innerHTML = matches.map(t => `
-    <div style="padding:10px 8px;border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:background .15s;" 
-         onmouseover="this.style.background='var(--surface)'" 
-         onmouseout="this.style.background='transparent'"
-         onclick="toggleSearch()">
-      <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${t.priority==='high'?'#ef4444':t.priority==='medium'?'#f59e0b':'#22c55e'};"></div>
-      <div>
-        <div style="font-size:.88rem;font-weight:500;color:var(--text-1);${t.completed?'text-decoration:line-through;opacity:.5;':''}">${t.title}</div>
-        <div style="font-size:.75rem;color:var(--text-3);margin-top:2px;">${t.category}${t.dueDate?' · '+t.dueDate:''}</div>
-      </div>
-    </div>`).join('');
 }
+
 function clearErrors() {
   ['input-email', 'input-password'].forEach(id => {
     const el = document.getElementById(id);
@@ -393,11 +446,11 @@ function clearHabitErrors() {
 }
 
 function showTaskFieldError(inputId, errorId, bannerId, msg) {
-  const input  = document.getElementById(inputId);
-  const err    = document.getElementById(errorId);
+  const input = document.getElementById(inputId);
+  const err = document.getElementById(errorId);
   const banner = document.getElementById(bannerId);
-  if (input)  input.classList.add('error');
-  if (err)    { err.textContent = msg; err.classList.add('visible'); }
+  if (input) input.classList.add('error');
+  if (err) { err.textContent = msg; err.classList.add('visible'); }
   if (banner) { banner.textContent = msg; banner.classList.add('visible'); }
   const card = input ? input.closest('.create-form-card, .modal-box') : null;
   if (card) { card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); }
@@ -407,9 +460,9 @@ function showTaskFieldError(inputId, errorId, bannerId, msg) {
 
 function setFieldError(inputId, errorId, msg) {
   const input = document.getElementById(inputId);
-  const err   = document.getElementById(errorId);
+  const err = document.getElementById(errorId);
   if (input) input.classList.add('error');
-  if (err)   { err.textContent = msg; err.classList.add('visible'); }
+  if (err) { err.textContent = msg; err.classList.add('visible'); }
 }
 
 function showFormError(msg) {
@@ -424,9 +477,9 @@ function showFormError(msg) {
 }
 async function handleLogin() {
   clearErrors();
-  const email    = document.getElementById('input-email').value.trim();
+  const email = document.getElementById('input-email').value.trim();
   const password = document.getElementById('input-password').value;
-  const name     = document.getElementById('input-name').value || 'User';
+  const name = document.getElementById('input-name').value || 'User';
 
   // Client-side validation
   // Client-side validation
@@ -471,8 +524,9 @@ async function handleLogin() {
       document.getElementById('input-password').classList.add('error');
       return;
     }
-    state.user.name  = res.name  || email.split('@')[0];
-    state.user.email = res.email || email;
+    state.user.name = (res.user && res.user.name) || email.split('@')[0];
+    state.user.email = (res.user && res.user.email) || email;
+    state.user.id = (res.user && res.user.id) || null;
   }
 
   // Load real tasks from database
@@ -486,14 +540,14 @@ async function handleLogin() {
   // Load real habits from database
   const habits = await api.getHabits();
   state.habits = habits.map(h => ({
-    id:          h.id,
-    name:        h.name,
-    desc:        h.description || '',
-    frequency:   h.frequency || 'daily',
-    customDays:  h.customDays || [],
-    category:    h.category   || 'Health',
+    id: h.id,
+    name: h.name,
+    desc: h.description || '',
+    frequency: h.frequency || 'daily',
+    customDays: h.customDays || [],
+    category: h.category || 'Health',
     completions: h.completions || [],
-    createdAt:   h.createdAt  || '',
+    createdAt: h.createdAt || '',
   }));
 
   // Store user info for other pages to pick up
@@ -506,7 +560,7 @@ async function handleLogin() {
 }
 
 function togglePassword() {
-  const input    = document.getElementById('input-password');
+  const input = document.getElementById('input-password');
   const iconShow = document.getElementById('pw-icon-show');
   const iconHide = document.getElementById('pw-icon-hide');
   if (input.type === 'password') {
@@ -532,11 +586,11 @@ function showView(v) {
 // Page-to-file mapping for multi-page navigation
 const PAGE_FILES = {
   dashboard: 'dashboard.html',
-  tasks:     'tasks.html',
-  habits:    'habits.html',
-  focus:     'focus.html',
-  settings:  'settings.html',
-  create:    'tasks.html?create=1',
+  tasks: 'tasks.html',
+  habits: 'habits.html',
+  focus: 'focus.html',
+  settings: 'settings.html',
+  create: 'tasks.html?create=1',
 };
 
 function navigateTo(page) {
@@ -553,13 +607,13 @@ function showPage(page, navEl) {
   }
 
   // Otherwise handle in-page switching (for pages with multiple sections)
-  ['dashboard','tasks','create','habits','focus','settings'].forEach(p => {
+  ['dashboard', 'tasks', 'create', 'habits', 'focus', 'settings'].forEach(p => {
     const el = document.getElementById('page-' + p);
     if (el) el.style.display = 'none';
   });
   if (page === 'focus') { showView('focus'); renderFocusTasks(); return; }
   showView('app');
-  const titles = { dashboard:'Dashboard', tasks:'My Tasks', create:'New Task', habits:'Habits', settings:'Settings' };
+  const titles = { dashboard: 'Dashboard', tasks: 'My Tasks', create: 'New Task', habits: 'Habits', settings: 'Settings' };
   const titleEl = document.getElementById('topbar-title');
   if (titleEl) titleEl.textContent = titles[page] || page;
   target.style.display = 'block';
@@ -571,10 +625,10 @@ function showPage(page, navEl) {
     navEl.classList.add('active');
   }
   if (page === 'dashboard') renderDashboard();
-  if (page === 'tasks')     renderAllTasks();
-  if (page === 'habits')    renderHabits();
-  if (page === 'settings')  renderSettings('profile');
-  if (page === 'create')    initCreateForm();
+  if (page === 'tasks') renderAllTasks();
+  if (page === 'habits') renderHabits();
+  if (page === 'settings') renderSettings('profile');
+  if (page === 'create') initCreateForm();
 }
 
 // Auto-init: call the right render function based on which page we're on
@@ -615,16 +669,17 @@ function renderAll() { renderDashboard(); }
 function renderDashboard() {
   if (!document.getElementById('page-dashboard')) return;
   const todayTasks = state.tasks.filter(t => t.dueDate === today);
-  const doneTasks  = state.tasks.filter(t => t.completed);
+  const doneTasks = state.tasks.filter(t => t.completed);
   const rate = state.tasks.length ? Math.round((doneTasks.length / state.tasks.length) * 100) : 0;
 
-  document.getElementById('stat-total').textContent  = state.tasks.length;
-  document.getElementById('stat-done').textContent   = doneTasks.length;
+  document.getElementById('stat-total').textContent = state.tasks.length;
+  document.getElementById('stat-done').textContent = doneTasks.length;
   document.getElementById('stat-habits').textContent = state.habits.length;
-  document.getElementById('stat-rate').textContent   = rate + '%';
-  document.getElementById('task-badge').textContent  = state.tasks.filter(t => !t.completed).length;
+  document.getElementById('stat-rate').textContent = rate + '%';
+  const badge = document.getElementById('task-badge');
+if (badge) badge.textContent = state.tasks.filter(t => !t.completed).length;
   document.getElementById('greeting-sub').textContent =
-    `${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})} · ${todayTasks.length} tasks today`;
+    `${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} · ${todayTasks.length} tasks today`;
 
   const display = state.currentTab === 'today'
     ? state.tasks.filter(t => t.dueDate === today || !t.dueDate).slice(0, 6)
@@ -642,25 +697,25 @@ function renderDashboard() {
   const _todayStr = new Date().toDateString();
   document.getElementById('dash-habits-list').innerHTML = state.habits.map(h => {
     const todayDone = (h.completions || []).includes(_todayStr);
-    const streak    = habitCalcStreak(h);
-    const last7     = [];
+    const streak = habitCalcStreak(h);
+    const last7 = [];
     for (let i = 6; i >= 0; i--) {
-      const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - i);
+      const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - i);
       last7.push((h.completions || []).includes(d.toDateString()));
     }
     return `
     <div class="habit-mini-row">
       <div class="h-check ${todayDone ? 'done' : ''}" onclick="toggleHabitToday(${h.id})">
         ${todayDone
-          ? '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 7l3 3 6-6"/></svg>'
-          : '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3v8M3 7h8"/></svg>'}
+        ? '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 7l3 3 6-6"/></svg>'
+        : '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3v8M3 7h8"/></svg>'}
       </div>
       <div class="habit-mini-info">
         <div class="habit-mini-name">${h.name}</div>
         <div class="habit-mini-streak">${streak} day streak</div>
       </div>
       <div class="habit-week">${last7.map((d, i) =>
-        `<div class="hw-dot ${d ? 'done' : ''} ${i === 6 ? 'today' : ''}"></div>`).join('')}</div>
+          `<div class="hw-dot ${d ? 'done' : ''} ${i === 6 ? 'today' : ''}"></div>`).join('')}</div>
     </div>`;
   }).join('');
 }
@@ -673,7 +728,7 @@ function emptyState(msg) {
 }
 
 function taskRowHTML(t, mini = false) {
-  const dueText  = t.dueDate ? new Date(t.dueDate + 'T00:00').toLocaleDateString('en-US', {month:'short', day:'numeric'}) : '';
+  const dueText = t.dueDate ? new Date(t.dueDate + 'T00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
   const isOverdue = t.dueDate && t.dueDate < today && !t.completed;
   return `<div class="task-row ${t.completed ? 'done' : ''}" id="trow-${t.id}">
     <div class="check-circle ${t.completed ? 'checked' : ''}" onclick="toggleTask(${t.id})"></div>
@@ -704,21 +759,32 @@ function switchTab(el, tab) {
 
 
 async function toggleTask(id) {
-  await api.markComplete(id);
   const t = state.tasks.find(t => t.id === id);
-  if (t) t.completed = !t.completed;
+  if (!t) return;
+  try {
+    if (!t.completed) {
+      await api.markComplete(id);
+      t.completed = true;
+      showToast('Task completed');
+    } else {
+      await api.unmarkComplete(id);
+      t.completed = false;
+      showToast('Task reopened');
+    }
+  } catch (e) {
+    t.completed = !t.completed;
+  }
   persistState();
   renderDashboard();
   renderAllTasks();
-  showToast(t && t.completed ? 'Task completed' : 'Task reopened');
 }
 
 function renderAllTasks() {
   if (!document.getElementById('all-task-list')) return;
   let list = [...state.tasks];
-  if      (state.currentFilter === 'todo') list = list.filter(t => !t.completed);
+  if (state.currentFilter === 'todo') list = list.filter(t => !t.completed);
   else if (state.currentFilter === 'done') list = list.filter(t => t.completed);
-  else if (['Work','Personal','Home','Health'].includes(state.currentFilter))
+  else if (['Work', 'Personal', 'Home', 'Health'].includes(state.currentFilter))
     list = list.filter(t => t.category === state.currentFilter);
   document.getElementById('all-task-list').innerHTML =
     list.length ? list.map(t => taskRowHTML(t)).join('') : emptyState('No tasks found');
@@ -738,10 +804,10 @@ function editTask(id) {
   state.editingTaskId = id;
   showPage('create', null);
   setTimeout(() => {
-    document.getElementById('create-form-title').textContent  = 'Edit Task';
-    document.getElementById('new-task-title').value           = t.title;
-    document.getElementById('new-task-description').value     = t.description || '';
-    document.getElementById('new-task-category').value        = t.category;
+    document.getElementById('create-form-title').textContent = 'Edit Task';
+    document.getElementById('new-task-title').value = t.title;
+    document.getElementById('new-task-description').value = t.description || '';
+    document.getElementById('new-task-category').value = t.category;
     if (t.dueDate) document.getElementById('new-task-dueDate').value = t.dueDate;
     state.priority = t.priority || 'low';
     document.querySelectorAll('.prio-btn').forEach(b => {
@@ -749,7 +815,7 @@ function editTask(id) {
       if (b.classList.contains(state.priority)) b.classList.add('sel');
     });
     document.getElementById('save-task-btn').textContent = 'Update Task';
-    document.getElementById('save-task-btn').onclick     = () => updateTask(id);
+    document.getElementById('save-task-btn').onclick = () => updateTask(id);
     updatePreview();
   }, 50);
 }
@@ -764,11 +830,11 @@ async function updateTask(id) {
   const payload = {
     title,
     description: document.getElementById('new-task-description').value,
-    category:    document.getElementById('new-task-category').value,
-    dueDate:     document.getElementById('new-task-dueDate').value,
-    priority:    state.priority,
+    category: document.getElementById('new-task-category').value,
+    dueDate: document.getElementById('new-task-dueDate').value,
+    priority: state.priority,
   };
-  try { await api.updateTask(id, payload); } catch(e) {}
+  try { await api.updateTask(id, payload); } catch (e) { }
   const idx = state.tasks.findIndex(t => t.id === id);
   if (idx !== -1) state.tasks[idx] = { ...state.tasks[idx], ...payload };
   persistState();
@@ -778,11 +844,11 @@ async function updateTask(id) {
   renderAllTasks();
 }
 
-function deleteTask(id)  { state.deleteTarget = id; document.getElementById('delete-modal').classList.add('open'); }
-function closeModal()    { document.getElementById('delete-modal').classList.remove('open'); }
+function deleteTask(id) { state.deleteTarget = id; document.getElementById('delete-modal').classList.add('open'); }
+function closeModal() { document.getElementById('delete-modal').classList.remove('open'); }
 
 async function confirmDelete() {
-  try { await api.deleteTask(state.deleteTarget); } catch(e) {}
+  try { await api.deleteTask(state.deleteTarget); } catch (e) { }
   state.tasks = state.tasks.filter(t => t.id !== state.deleteTarget);
   persistState();
   closeModal();
@@ -794,16 +860,16 @@ async function confirmDelete() {
 
 function initCreateForm() {
   state.editingTaskId = null;
-  document.getElementById('create-form-title').textContent  = 'New Task';
-  document.getElementById('new-task-title').value           = '';
-  document.getElementById('new-task-description').value     = '';
-  document.getElementById('new-task-category').value        = 'Work';
-  document.getElementById('new-task-dueDate').value         = '';
-  document.getElementById('new-task-dueDate').min           = today;
+  document.getElementById('create-form-title').textContent = 'New Task';
+  document.getElementById('new-task-title').value = '';
+  document.getElementById('new-task-description').value = '';
+  document.getElementById('new-task-category').value = 'Work';
+  document.getElementById('new-task-dueDate').value = '';
+  document.getElementById('new-task-dueDate').min = today;
   state.priority = 'low';
   document.querySelectorAll('.prio-btn').forEach((b, i) => { b.classList.remove('sel'); if (i === 0) b.classList.add('sel'); });
   document.getElementById('save-task-btn').textContent = 'Save Task';
-  document.getElementById('save-task-btn').onclick     = saveTask;
+  document.getElementById('save-task-btn').onclick = saveTask;
   updatePreview();
 }
 
@@ -816,14 +882,14 @@ function selectPriority(el, p) {
 
 function updatePreview() {
   const title = document.getElementById('new-task-title').value;
-  const desc  = document.getElementById('new-task-description').value;
-  const cat   = document.getElementById('new-task-category').value;
-  document.getElementById('prev-title').textContent      = title || 'Task title...';
-  document.getElementById('prev-title').style.color      = title ? 'var(--text-1)' : 'var(--text-3)';
-  document.getElementById('prev-title').style.fontStyle  = title ? 'normal' : 'italic';
-  document.getElementById('prev-desc').textContent       = desc || 'No description yet';
-  document.getElementById('prev-desc').style.fontStyle   = desc ? 'normal' : 'italic';
-  const pLabels = { low:'Low priority', medium:'Medium priority', high:'High priority' };
+  const desc = document.getElementById('new-task-description').value;
+  const cat = document.getElementById('new-task-category').value;
+  document.getElementById('prev-title').textContent = title || 'Task title...';
+  document.getElementById('prev-title').style.color = title ? 'var(--text-1)' : 'var(--text-3)';
+  document.getElementById('prev-title').style.fontStyle = title ? 'normal' : 'italic';
+  document.getElementById('prev-desc').textContent = desc || 'No description yet';
+  document.getElementById('prev-desc').style.fontStyle = desc ? 'normal' : 'italic';
+  const pLabels = { low: 'Low priority', medium: 'Medium priority', high: 'High priority' };
   document.getElementById('prev-meta').innerHTML =
     `<span class="preview-chip">${cat}</span><span class="preview-chip">${pLabels[state.priority]}</span>`;
 }
@@ -838,9 +904,9 @@ async function saveTask() {
   const payload = {
     title,
     description: document.getElementById('new-task-description').value,
-    priority:    state.priority,
-    dueDate:     document.getElementById('new-task-dueDate').value || null,
-    category:    document.getElementById('new-task-category').value,
+    priority: state.priority,
+    dueDate: document.getElementById('new-task-dueDate').value || null,
+    category: document.getElementById('new-task-category').value,
   };
   try {
     const newTask = await api.createTask(payload);
@@ -849,7 +915,7 @@ async function saveTask() {
       dueDate: newTask.dueDate ? newTask.dueDate.split('T')[0] : '',
       category: payload.category,
     });
-  } catch(e) {
+  } catch (e) {
     // Backend offline — save locally so UI still works
     state.tasks.unshift({
       id: Date.now(), ...payload,
@@ -868,18 +934,18 @@ const habitCheckIcon = `<svg viewBox="0 0 10 10" fill="none" stroke="currentColo
 const habitFlameIcon = `<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 1c0 3-3 4-3 6.5C3 9.4 4.3 11 6 11s3-1.6 3-3.5C9 5 6 4 6 1z"/></svg>`;
 
 function habitFreqLabel(freq, customDays) {
-  if (freq === 'daily')    return 'Daily';
+  if (freq === 'daily') return 'Daily';
   if (freq === 'weekdays') return 'Weekdays';
-  if (freq === 'custom')   return (customDays || []).join(', ') || 'Custom';
+  if (freq === 'custom') return (customDays || []).join(', ') || 'Custom';
   return freq;
 }
 
 function habitIsScheduledDay(h, date) {
-  const dayName  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][date.getDay()];
-  const weekdays = ['Mon','Tue','Wed','Thu','Fri'];
-  if (h.frequency === 'daily')    return true;
+  const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()];
+  const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+  if (h.frequency === 'daily') return true;
   if (h.frequency === 'weekdays') return weekdays.includes(dayName);
-  if (h.frequency === 'custom')   return (h.customDays || []).includes(dayName);
+  if (h.frequency === 'custom') return (h.customDays || []).includes(dayName);
   return true;
 }
 
@@ -887,9 +953,9 @@ function habitCalcStreak(h) {
   const comps = (h.completions || []).slice().sort();
   if (!comps.length) return 0;
   let streak = 0;
-  let cursor = new Date(); cursor.setHours(0,0,0,0);
+  let cursor = new Date(); cursor.setHours(0, 0, 0, 0);
   for (let i = comps.length - 1; i >= 0; i--) {
-    const d = new Date(comps[i]); d.setHours(0,0,0,0);
+    const d = new Date(comps[i]); d.setHours(0, 0, 0, 0);
     const diff = (cursor - d) / 86400000;
     if (diff <= 1) { streak++; cursor = d; } else break;
   }
@@ -899,7 +965,7 @@ function habitCalcStreak(h) {
 // ── Render habits page ───────────────────────────────────────────────────────
 function renderHabits() {
   if (!document.getElementById('habits-grid')) return;
-  const grid  = document.getElementById('habits-grid');
+  const grid = document.getElementById('habits-grid');
   const empty = document.getElementById('habits-empty');
   grid.innerHTML = '';
 
@@ -909,22 +975,22 @@ function renderHabits() {
   }
   if (empty) empty.style.display = 'none';
 
-  const now = new Date(); now.setHours(0,0,0,0);
+  const now = new Date(); now.setHours(0, 0, 0, 0);
   const todayStr = now.toDateString();
 
   state.habits.forEach(h => {
-    const streak          = habitCalcStreak(h);
-    const todayDone       = (h.completions || []).includes(todayStr);
-    const todayScheduled  = habitIsScheduledDay(h, now);
+    const streak = habitCalcStreak(h);
+    const todayDone = (h.completions || []).includes(todayStr);
+    const todayScheduled = habitIsScheduledDay(h, now);
 
     const days = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date(now); d.setDate(d.getDate() - i);
       days.push({
-        label:     ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()],
-        dateStr:   d.toDateString(),
-        done:      (h.completions || []).includes(d.toDateString()),
-        isToday:   i === 0,
+        label: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()],
+        dateStr: d.toDateString(),
+        done: (h.completions || []).includes(d.toDateString()),
+        isToday: i === 0,
         scheduled: habitIsScheduledDay(h, d),
       });
     }
@@ -956,10 +1022,10 @@ function renderHabits() {
       <div class="habit-card-bottom">
         <div class="streak-badge">${habitFlameIcon} ${streak} day streak</div>
         ${todayScheduled
-          ? `<button class="habit-complete-btn ${todayDone ? 'done' : 'todo'}" onclick="toggleHabitToday(${h.id})">
+        ? `<button class="habit-complete-btn ${todayDone ? 'done' : 'todo'}" onclick="toggleHabitToday(${h.id})">
                ${todayDone ? 'Done today' : 'Mark today'}
              </button>`
-          : `<span style="font-size:.78rem;color:var(--text-3);">Not scheduled today</span>`}
+        : `<span style="font-size:.78rem;color:var(--text-3);">Not scheduled today</span>`}
       </div>
     `;
     grid.appendChild(card);
@@ -981,7 +1047,7 @@ async function toggleHabitToday(id) {
   if ((h.completions || []).includes(todayStr)) {
     h.completions = h.completions.filter(d => d !== todayStr);
   } else {
-    try { await api.markHabitComplete(id); } catch(e) {}
+    try { await api.markHabitComplete(id); } catch (e) { }
     h.completions = [...(h.completions || []), todayStr];
   }
   persistState();
@@ -1004,9 +1070,9 @@ function toggleHabitDay(id, dateStr) {
 }
 
 // ── Create / Edit modal ───────────────────────────────────────────────────────
-let _habitEditingId  = null;
-let _habitSelFreq    = 'daily';
-let _habitSelDays    = [];
+let _habitEditingId = null;
+let _habitSelFreq = 'daily';
+let _habitSelDays = [];
 
 function openCreateHabit() {
   _habitEditingId = null;
@@ -1022,8 +1088,8 @@ function openEditHabit(id) {
   if (!h) return;
   _habitEditingId = id;
   _setHabitModalTitle('Edit Habit', 'Update your habit details');
-  document.getElementById('habit-name').value     = h.name;
-  document.getElementById('habit-desc').value     = h.desc || '';
+  document.getElementById('habit-name').value = h.name;
+  document.getElementById('habit-desc').value = h.desc || '';
   document.getElementById('habit-category').value = h.category || 'Health';
   _habitSetFreq(h.frequency || 'daily', h.customDays || []);
   _showHabitModal();
@@ -1034,14 +1100,14 @@ function closeHabitModal(e) {
   document.getElementById('habit-modal').style.display = 'none';
 }
 
-function _showHabitModal()  { document.getElementById('habit-modal').style.display = 'flex'; }
+function _showHabitModal() { document.getElementById('habit-modal').style.display = 'flex'; }
 function _setHabitModalTitle(t, s) {
   document.getElementById('habit-modal-title').textContent = t;
-  document.getElementById('habit-modal-sub').textContent   = s;
+  document.getElementById('habit-modal-sub').textContent = s;
 }
 function _clearHabitForm() {
-  document.getElementById('habit-name').value     = '';
-  document.getElementById('habit-desc').value     = '';
+  document.getElementById('habit-name').value = '';
+  document.getElementById('habit-desc').value = '';
   document.getElementById('habit-category').value = 'Health';
 }
 
@@ -1079,7 +1145,7 @@ function toggleDay(btn) {
   btn.classList.toggle('medium', !on);
 }
 
-function saveHabit() {
+async function saveHabit() {
   clearHabitErrors();
   const name = document.getElementById('habit-name').value.trim();
   if (!name) {
@@ -1090,23 +1156,42 @@ function saveHabit() {
   if (_habitEditingId !== null) {
     const h = state.habits.find(x => x.id === _habitEditingId);
     if (h) {
-      h.name       = name;
-      h.desc       = document.getElementById('habit-desc').value.trim();
-      h.frequency  = _habitSelFreq;
+      h.name = name;
+      h.desc = document.getElementById('habit-desc').value.trim();
+      h.frequency = _habitSelFreq;
       h.customDays = [..._habitSelDays];
-      h.category   = document.getElementById('habit-category').value;
+      h.category = document.getElementById('habit-category').value;
     }
   } else {
-    state.habits.push({
-      id:          Date.now(),
-      name,
-      desc:        document.getElementById('habit-desc').value.trim(),
-      frequency:   _habitSelFreq,
-      customDays:  [..._habitSelDays],
-      category:    document.getElementById('habit-category').value,
-      completions: [],
-      createdAt:   new Date().toISOString(),
-    });
+    try {
+      const payload = {
+        name,
+        description: document.getElementById('habit-desc').value.trim(),
+        frequency: _habitSelFreq,
+        category: document.getElementById('habit-category').value,
+      };
+      const newHabit = await api.createHabit(payload);
+      state.habits.push({
+        ...newHabit,
+        desc: newHabit.description || '',
+        frequency: newHabit.frequency || 'daily',
+        customDays: [..._habitSelDays],
+        category: newHabit.category || 'Health',
+        completions: [],
+        createdAt: newHabit.createdAt || new Date().toISOString(),
+      });
+    } catch (e) {
+      // fallback if backend is offline
+      state.habits.push({
+        id: Date.now(), name,
+        desc: document.getElementById('habit-desc').value.trim(),
+        frequency: _habitSelFreq,
+        customDays: [..._habitSelDays],
+        category: document.getElementById('habit-category').value,
+        completions: [],
+        createdAt: new Date().toISOString(),
+      });
+    }
   }
 
   persistState();
@@ -1127,7 +1212,7 @@ function closeDeleteHabitModal() {
   _deletingHabitId = null;
 }
 async function confirmDeleteHabit() {
-  try { await api.deleteHabit(_deletingHabitId); } catch(e) {}
+  try { await api.deleteHabit(_deletingHabitId); } catch (e) { }
   state.habits = state.habits.filter(h => h.id !== _deletingHabitId);
   persistState();
   closeDeleteHabitModal();
@@ -1144,19 +1229,19 @@ function renderFocusTasks() {
   const activeTasks = state.tasks.filter(t => !t.completed).slice(0, 4);
   document.getElementById('focus-task-list').innerHTML = activeTasks.map(t => `
     <div class="focus-pick-item ${t.title === state.focusTask ? 'active' : ''}"
-         onclick="selectFocusTask('${t.title.replace(/'/g,"\\'")}','${t.category}')">
+         onclick="selectFocusTask('${t.title.replace(/'/g, "\\'")}','${t.category}')">
       <div class="focus-pick-dot"></div>
       <span class="focus-pick-name ${t.title === state.focusTask ? 'active' : ''}">${t.title}</span>
     </div>`).join('');
   document.getElementById('focus-task-name').textContent = state.focusTask;
-  document.getElementById('focus-task-cat').textContent  = state.focusTaskCat;
+  document.getElementById('focus-task-cat').textContent = state.focusTaskCat;
 }
 
 function selectFocusTask(name, cat) {
   state.focusTask = name; state.focusTaskCat = cat;
   stopFocus();
   document.getElementById('focus-task-name').textContent = name;
-  document.getElementById('focus-task-cat').textContent  = cat;
+  document.getElementById('focus-task-cat').textContent = cat;
   renderFocusTasks();
 }
 
@@ -1165,7 +1250,7 @@ function toggleFocus() { state.focusRunning ? stopFocus() : startFocus(); }
 function startFocus() {
   state.focusRunning = true;
   document.getElementById('focus-play-btn').textContent = 'Pause';
-  document.getElementById('focus-status').textContent   = 'Focusing';
+  document.getElementById('focus-status').textContent = 'Focusing';
   state.focusTimer = setInterval(() => {
     state.focusSeconds--;
     updateFocusClock();
@@ -1180,34 +1265,34 @@ function stopFocus() {
   state.focusRunning = false;
   clearInterval(state.focusTimer);
   document.getElementById('focus-play-btn').textContent = 'Resume';
-  document.getElementById('focus-status').textContent   = 'Paused';
+  document.getElementById('focus-status').textContent = 'Paused';
 }
 
 function skipFocus() {
   stopFocus(); state.focusSeconds = 25 * 60; updateFocusClock();
   document.getElementById('focus-play-btn').textContent = 'Start';
-  document.getElementById('focus-status').textContent   = 'Ready';
+  document.getElementById('focus-status').textContent = 'Ready';
 }
 
 function updateFocusClock() {
-  const minEl  = document.getElementById('focus-min');
+  const minEl = document.getElementById('focus-min');
   if (!minEl) return;
-  const secEl  = document.getElementById('focus-sec');
+  const secEl = document.getElementById('focus-sec');
   const ringEl = document.getElementById('timer-ring');
   const progEl = document.getElementById('focus-progress-text');
   const m = Math.floor(state.focusSeconds / 60);
   const s = state.focusSeconds % 60;
-  minEl.textContent  = String(m).padStart(2, '0');
-  secEl.textContent  = String(s).padStart(2, '0');
+  minEl.textContent = String(m).padStart(2, '0');
+  secEl.textContent = String(s).padStart(2, '0');
   const pct = state.focusSeconds / (25 * 60);
   ringEl.style.strokeDashoffset = 534 * (1 - pct);
-  progEl.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')} remaining · Pomodoro session`;
+  progEl.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')} remaining · Pomodoro session`;
 }
 
 function exitFocus() {
   stopFocus(); state.focusSeconds = 25 * 60; updateFocusClock();
   document.getElementById('focus-play-btn').textContent = 'Start';
-  document.getElementById('focus-status').textContent   = 'Ready';
+  document.getElementById('focus-status').textContent = 'Ready';
   showView('app');
   showPage('dashboard', document.querySelector('.nav-item'));
 }
@@ -1220,7 +1305,7 @@ function settingsHTML(tab) {
         <div class="settings-section-desc">Manage your personal information</div>
         <div class="field-group"><label class="field-label">Full Name</label><input class="field-input" type="text" value="${state.user.name || ''}"></div>
 <div class="field-group"><label class="field-label">Email</label><input class="field-input" type="email" value="${state.user.email || ''}"></div>
-<button class="btn-save" style="width:auto;padding:10px 24px;margin-top:4px;" onclick="showToast('Profile saved')">Save Changes</button>
+<button class="btn-save" style="width:auto;padding:10px 24px;margin-top:4px;" onclick="saveProfileSettings(this)">Save Changes</button>
       </div>`,
     preferences: `
       <div class="settings-section">
@@ -1253,7 +1338,7 @@ function settingsHTML(tab) {
         <div class="field-group"><label class="field-label">Current Password</label><input class="field-input" type="password" placeholder="••••••••"></div>
         <div class="field-group"><label class="field-label">New Password</label><input class="field-input" type="password" placeholder="••••••••"></div>
         <div class="field-group"><label class="field-label">Confirm Password</label><input class="field-input" type="password" placeholder="••••••••"></div>
-        <button class="btn-save" style="width:auto;padding:10px 24px;" onclick="showToast('Password updated')">Update Password</button>
+        <button class="btn-save" style="width:auto;padding:10px 24px;" onclick="changePassword(this)">Update Password</button>
       </div>
       <div class="settings-section">
         <div class="settings-section-title" style="color:#dc2626;">Danger Zone</div>

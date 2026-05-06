@@ -38,26 +38,19 @@ exports.getAllTasks = async (req, res) => {
 exports.searchTasks = async (req, res) => {
   const { keyword, category, priority } = req.query;
   try {
-    const filters = {
-      userId: req.user.userId,
-      AND: [],
-    };
-
-    if (keyword) {
-      filters.AND.push({
+    const tasks = await prisma.task.findMany({
+      where: {
+        userId: req.user.userId,
         OR: [
-          { title:       { contains: keyword, mode: 'insensitive' } },
-          { description: { contains: keyword, mode: 'insensitive' } },
-        ],
-      });
-    }
-
-    if (category) filters.AND.push({ category });
-    if (priority) filters.AND.push({ priority });
-
-    if (!filters.AND.length) delete filters.AND;
-
-    const tasks = await prisma.task.findMany({ where: filters });
+          keyword  ? { title:       { contains: keyword,  mode: 'insensitive' } } : undefined,
+          keyword  ? { description: { contains: keyword,  mode: 'insensitive' } } : undefined,
+          keyword  ? { category:    { contains: keyword,  mode: 'insensitive' } } : undefined,
+          keyword  ? { priority:    { contains: keyword,  mode: 'insensitive' } } : undefined,
+          category ? { category:    { contains: category, mode: 'insensitive' } } : undefined,
+          priority ? { priority:    { contains: priority, mode: 'insensitive' } } : undefined,
+        ].filter(Boolean),
+      },
+    });
     res.json(tasks);
   } catch (err) {
     console.error('searchTasks error:', err);

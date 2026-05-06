@@ -323,3 +323,35 @@ body.dark .modal-overlay{background:rgba(0,0,0,.6);}
   .sidebar{transform:translateX(-100%);}
   .main-content{margin-left:0;}
 }
+/* ── Inline field validation errors ─────────────────────────────────────── */
+.field-error {
+  font-size: .78rem;
+  color: #dc2626;
+  margin-top: 6px;
+  display: none;
+  align-items: center;
+  gap: 5px;
+}
+.field-error.visible { display: flex; }
+.field-input.error,
+.field-textarea.error,
+.field-select.error {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(220,38,38,.13) !important;
+}
+.form-error-banner {
+  display: none;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: .85rem;
+  color: #b91c1c;
+  margin-bottom: 12px;
+}
+.form-error-banner.visible { display: block; }
+@keyframes shake {
+  0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)}
+  40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)}
+}
+.shake { animation: shake .4s ease; }

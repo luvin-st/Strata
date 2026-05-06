@@ -78,9 +78,11 @@
                         <div class="create-layout">
                             <div class="create-form-card">
                                 <h3 id="create-form-title">New Task</h3>
+                                <div class="form-error-banner" id="task-error-banner"></div>
                                 <div class="field-group">
                                     <label class="field-label">Title</label>
-                                    <input class="field-input" type="text" id="new-task-title" placeholder="What needs to be done?" oninput="updatePreview()">
+                                    <input class="field-input" type="text" id="new-task-title" placeholder="What needs to be done?" oninput="updatePreview();clearTaskErrors()">
+                                    <div class="field-error" id="error-task-title"></div>
                                 </div>
                                 <div class="field-group">
                                     <label class="field-label">Description</label>

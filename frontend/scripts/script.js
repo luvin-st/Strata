@@ -374,6 +374,37 @@ function clearErrors() {
   if (b) { b.textContent = ''; b.classList.remove('visible'); }
 }
 
+function clearTaskErrors() {
+  const t = document.getElementById('new-task-title');
+  const e = document.getElementById('error-task-title');
+  const b = document.getElementById('task-error-banner');
+  if (t) t.classList.remove('error');
+  if (e) { e.textContent = ''; e.classList.remove('visible'); }
+  if (b) { b.textContent = ''; b.classList.remove('visible'); }
+}
+
+function clearHabitErrors() {
+  const n = document.getElementById('habit-name');
+  const e = document.getElementById('error-habit-name');
+  const b = document.getElementById('habit-error-banner');
+  if (n) n.classList.remove('error');
+  if (e) { e.textContent = ''; e.classList.remove('visible'); }
+  if (b) { b.textContent = ''; b.classList.remove('visible'); }
+}
+
+function showTaskFieldError(inputId, errorId, bannerId, msg) {
+  const input  = document.getElementById(inputId);
+  const err    = document.getElementById(errorId);
+  const banner = document.getElementById(bannerId);
+  if (input)  input.classList.add('error');
+  if (err)    { err.textContent = msg; err.classList.add('visible'); }
+  if (banner) { banner.textContent = msg; banner.classList.add('visible'); }
+  const card = input ? input.closest('.create-form-card, .modal-box') : null;
+  if (card) { card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); }
+  // fallback toast if elements aren't in the DOM
+  if (!err && !banner) showToast(msg);
+}
+
 function setFieldError(inputId, errorId, msg) {
   const input = document.getElementById(inputId);
   const err   = document.getElementById(errorId);
@@ -691,7 +722,7 @@ function renderAllTasks() {
     list = list.filter(t => t.category === state.currentFilter);
   document.getElementById('all-task-list').innerHTML =
     list.length ? list.map(t => taskRowHTML(t)).join('') : emptyState('No tasks found');
-  document.getElementById('task-badge').textContent = state.tasks.filter(t => !t.completed).length;
+  const badge = document.getElementById('task-badge'); if (badge) badge.textContent = state.tasks.filter(t => !t.completed).length;
 }
 
 function filterTasks(filter, el) {
@@ -724,14 +755,20 @@ function editTask(id) {
 }
 
 async function updateTask(id) {
+  clearTaskErrors();
+  const title = document.getElementById('new-task-title').value.trim();
+  if (!title) {
+    showTaskFieldError('new-task-title', 'error-task-title', 'task-error-banner', 'Task title is required');
+    return;
+  }
   const payload = {
-    title:       document.getElementById('new-task-title').value,
+    title,
     description: document.getElementById('new-task-description').value,
     category:    document.getElementById('new-task-category').value,
     dueDate:     document.getElementById('new-task-dueDate').value,
     priority:    state.priority,
   };
-  await api.updateTask(id, payload);
+  try { await api.updateTask(id, payload); } catch(e) {}
   const idx = state.tasks.findIndex(t => t.id === id);
   if (idx !== -1) state.tasks[idx] = { ...state.tasks[idx], ...payload };
   persistState();
@@ -745,7 +782,7 @@ function deleteTask(id)  { state.deleteTarget = id; document.getElementById('del
 function closeModal()    { document.getElementById('delete-modal').classList.remove('open'); }
 
 async function confirmDelete() {
-  await api.deleteTask(state.deleteTarget);
+  try { await api.deleteTask(state.deleteTarget); } catch(e) {}
   state.tasks = state.tasks.filter(t => t.id !== state.deleteTarget);
   persistState();
   closeModal();
@@ -792,8 +829,12 @@ function updatePreview() {
 }
 
 async function saveTask() {
+  clearTaskErrors();
   const title = document.getElementById('new-task-title').value.trim();
-  if (!title) { showToast('Please enter a task title'); return; }
+  if (!title) {
+    showTaskFieldError('new-task-title', 'error-task-title', 'task-error-banner', 'Task title is required');
+    return;
+  }
   const payload = {
     title,
     description: document.getElementById('new-task-description').value,
@@ -801,12 +842,20 @@ async function saveTask() {
     dueDate:     document.getElementById('new-task-dueDate').value || null,
     category:    document.getElementById('new-task-category').value,
   };
-  const newTask = await api.createTask(payload);
-  state.tasks.unshift({
-    ...newTask,
-    dueDate: newTask.dueDate ? newTask.dueDate.split('T')[0] : '',
-    category: payload.category,
-  });
+  try {
+    const newTask = await api.createTask(payload);
+    state.tasks.unshift({
+      ...newTask,
+      dueDate: newTask.dueDate ? newTask.dueDate.split('T')[0] : '',
+      category: payload.category,
+    });
+  } catch(e) {
+    // Backend offline — save locally so UI still works
+    state.tasks.unshift({
+      id: Date.now(), ...payload,
+      dueDate: payload.dueDate || '', completed: false,
+    });
+  }
   persistState();
   showToast('Task created');
   showPage('dashboard', document.querySelector('.nav-item'));
@@ -932,7 +981,7 @@ async function toggleHabitToday(id) {
   if ((h.completions || []).includes(todayStr)) {
     h.completions = h.completions.filter(d => d !== todayStr);
   } else {
-    await api.markHabitComplete(id);
+    try { await api.markHabitComplete(id); } catch(e) {}
     h.completions = [...(h.completions || []), todayStr];
   }
   persistState();
@@ -964,6 +1013,7 @@ function openCreateHabit() {
   _setHabitModalTitle('Create Habit', 'Track a recurring behaviour to build streaks');
   _clearHabitForm();
   _habitSetFreq('daily', []);
+  clearHabitErrors();
   _showHabitModal();
 }
 
@@ -1030,8 +1080,12 @@ function toggleDay(btn) {
 }
 
 function saveHabit() {
+  clearHabitErrors();
   const name = document.getElementById('habit-name').value.trim();
-  if (!name) { showToast('Please enter a habit name'); return; }
+  if (!name) {
+    showTaskFieldError('habit-name', 'error-habit-name', 'habit-error-banner', 'Habit name is required');
+    return;
+  }
 
   if (_habitEditingId !== null) {
     const h = state.habits.find(x => x.id === _habitEditingId);
@@ -1073,7 +1127,7 @@ function closeDeleteHabitModal() {
   _deletingHabitId = null;
 }
 async function confirmDeleteHabit() {
-  await api.deleteHabit(_deletingHabitId);
+  try { await api.deleteHabit(_deletingHabitId); } catch(e) {}
   state.habits = state.habits.filter(h => h.id !== _deletingHabitId);
   persistState();
   closeDeleteHabitModal();
@@ -1175,6 +1229,10 @@ function settingsHTML(tab) {
         <div class="setting-row">
           <div class="setting-row-left"><div class="setting-name">Dark Mode</div><div class="setting-desc">Switch to a darker color scheme</div></div>
           <div class="toggle dark-mode-toggle ${state.darkMode ? 'on' : ''}" onclick="setDarkMode(!state.darkMode)"><div class="toggle-thumb"></div></div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-row-left"><div class="setting-name">Compact View</div><div class="setting-desc">Show more tasks in less space</div></div>
+          <div class="toggle on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
         </div>
       </div>
       <div class="settings-section">

@@ -1230,10 +1230,6 @@ function settingsHTML(tab) {
           <div class="setting-row-left"><div class="setting-name">Dark Mode</div><div class="setting-desc">Switch to a darker color scheme</div></div>
           <div class="toggle dark-mode-toggle ${state.darkMode ? 'on' : ''}" onclick="setDarkMode(!state.darkMode)"><div class="toggle-thumb"></div></div>
         </div>
-        <div class="setting-row">
-          <div class="setting-row-left"><div class="setting-name">Compact View</div><div class="setting-desc">Show more tasks in less space</div></div>
-          <div class="toggle on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
-        </div>
       </div>
       <div class="settings-section">
         <div class="settings-section-title">Task Defaults</div>

@@ -1127,19 +1127,9 @@ function settingsHTML(tab) {
       <div class="settings-section">
         <div class="settings-section-title">Profile</div>
         <div class="settings-section-desc">Manage your personal information</div>
-        <div class="avatar-row">
-          <div class="avatar-big" id="settings-avatar">E</div>
-          <div class="avatar-actions">
-            <button class="btn-sm-outline">Upload photo</button>
-            <button class="btn-sm-outline">Remove</button>
-          </div>
-        </div>
-        <div class="field-row" style="margin-bottom:16px;">
-          <div class="field-group" style="margin-bottom:0"><label class="field-label">First Name</label><input class="field-input" type="text" value="Emily"></div>
-          <div class="field-group" style="margin-bottom:0"><label class="field-label">Last Name</label><input class="field-input" type="text" value="Johnson"></div>
-        </div>
-        <div class="field-group"><label class="field-label">Email</label><input class="field-input" type="email" value="emily@example.com"></div>
-        <button class="btn-save" style="width:auto;padding:10px 24px;margin-top:4px;" onclick="showToast('Profile saved')">Save Changes</button>
+        <div class="field-group"><label class="field-label">Full Name</label><input class="field-input" type="text" value="${state.user.name || ''}"></div>
+<div class="field-group"><label class="field-label">Email</label><input class="field-input" type="email" value="${state.user.email || ''}"></div>
+<button class="btn-save" style="width:auto;padding:10px 24px;margin-top:4px;" onclick="showToast('Profile saved')">Save Changes</button>
       </div>`,
     preferences: `
       <div class="settings-section">

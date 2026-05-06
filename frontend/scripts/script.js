@@ -1182,8 +1182,7 @@ function settingsHTML(tab) {
         <div class="settings-section-title" style="color:#dc2626;">Danger Zone</div>
         <div class="settings-section-desc">These actions are irreversible</div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <button class="btn-sm-danger" onclick="showToast('Data exported')">Export my data</button>
-          <button class="btn-sm-danger" onclick="handleLogout()">Sign out everywhere</button>
+          <button class="btn-sm-danger" onclick="handleLogout()">Sign out</button>
           <button class="btn-sm-danger">Delete account</button>
         </div>
       </div>`

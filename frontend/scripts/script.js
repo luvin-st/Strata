@@ -437,6 +437,21 @@ async function handleLogin() {
   window.location.href = 'dashboard.html';
 }
 
+function togglePassword() {
+  const input    = document.getElementById('input-password');
+  const iconShow = document.getElementById('pw-icon-show');
+  const iconHide = document.getElementById('pw-icon-hide');
+  if (input.type === 'password') {
+    input.type = 'text';
+    iconShow.style.display = 'none';
+    iconHide.style.display = 'block';
+  } else {
+    input.type = 'password';
+    iconShow.style.display = 'block';
+    iconHide.style.display = 'none';
+  }
+}
+
 function handleLogout() { window.location.href = 'login.html'; }
 
 
